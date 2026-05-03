@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8"/>
+<title>Αρχιτεκτονική Συστήματος</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Sora:wght@400;600;700;800&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Sora', sans-serif; background: #0f1117; color: #e2e8f0; padding: 28px; min-height: 100vh; }
+
+  h1 { text-align: center; font-size: 20px; font-weight: 800; color: #fff; margin-bottom: 4px; letter-spacing: -0.5px; }
+  .subtitle { text-align: center; font-size: 12px; color: #64748b; margin-bottom: 28px; }
+
+  /* TOP FLOW */
+  .top-flow { display: flex; align-items: center; justify-content: center; gap: 0; margin-bottom: 32px; flex-wrap: wrap; }
+  .node { border-radius: 10px; padding: 14px 18px; text-align: center; min-width: 140px; }
+  .node h3 { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+  .node p  { font-size: 10px; line-height: 1.5; opacity: 0.75; }
+  .n-caller  { background: #1e293b; border: 2px solid #475569; }
+  .n-your    { background: #1e1b4b; border: 2px solid #6366f1; box-shadow: 0 0 20px rgba(99,102,241,0.3); }
+  .n-bratnet { background: #172554; border: 2px solid #3b82f6; }
+  .n-aade    { background: #450a0a; border: 2px solid #ef4444; }
+  .arrow { color: #475569; font-size: 20px; padding: 0 8px; align-self: center; }
+  .arrow span { font-size: 9px; display: block; color: #64748b; text-align: center; }
+
+  /* DB + API SECTION */
+  .section { max-width: 900px; margin: 0 auto 24px; }
+  .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #64748b; margin-bottom: 12px; border-bottom: 1px solid #1e293b; padding-bottom: 6px; }
+
+  .db-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .db-table { background: #1e293b; border-radius: 10px; overflow: hidden; border: 1px solid #334155; }
+  .db-table-header { background: #334155; padding: 10px 14px; display: flex; align-items: center; gap: 8px; }
+  .db-table-header .icon { font-size: 16px; }
+  .db-table-header h3 { font-size: 13px; font-weight: 700; }
+  .db-table-header .badge { margin-left: auto; background: #6366f1; color: #fff; font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 10px; }
+  .db-row { padding: 7px 14px; display: flex; justify-content: space-between; border-bottom: 1px solid #1e293b; font-size: 11px; }
+  .db-row:last-child { border-bottom: none; }
+  .db-row .col-name { font-family: 'JetBrains Mono', monospace; color: #a5b4fc; }
+  .db-row .col-type { color: #64748b; font-size: 10px; }
+  .db-row .col-note { color: #22c55e; font-size: 10px; }
+  .pk { color: #fbbf24 !important; }
+
+  /* API FLOW */
+  .api-flow { background: #1e293b; border-radius: 10px; border: 1px solid #334155; overflow: hidden; max-width: 900px; margin: 0 auto 24px; }
+  .api-flow-header { background: #6366f1; padding: 10px 16px; }
+  .api-flow-header h3 { font-size: 13px; font-weight: 700; color: #fff; }
+  .api-flow-header p { font-size: 11px; color: #c7d2fe; }
+  .flow-step { display: flex; gap: 14px; padding: 12px 16px; border-bottom: 1px solid #334155; align-items: flex-start; }
+  .flow-step:last-child { border-bottom: none; }
+  .step-num { background: #6366f1; color: #fff; font-size: 11px; font-weight: 700; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+  .step-body h4 { font-size: 12px; font-weight: 700; margin-bottom: 3px; color: #e2e8f0; }
+  .step-body p  { font-size: 11px; color: #94a3b8; }
+  .step-body code { font-family: 'JetBrains Mono', monospace; font-size: 10px; background: #0f1117; padding: 2px 6px; border-radius: 4px; color: #a5b4fc; }
+
+  /* PAYLOAD DIFF */
+  .payload-grid { display: grid; grid-template-columns: 1fr 40px 1fr; gap: 8px; max-width: 900px; margin: 0 auto 24px; align-items: center; }
+  .payload-box { background: #1e293b; border-radius: 10px; border: 1px solid #334155; overflow: hidden; }
+  .payload-header { padding: 8px 12px; font-size: 11px; font-weight: 700; }
+  .ph-in  { background: #164e63; color: #7dd3fc; }
+  .ph-out { background: #14532d; color: #86efac; }
+  .payload-body { padding: 10px 12px; font-family: 'JetBrains Mono', monospace; font-size: 10px; line-height: 1.8; }
+  .key  { color: #a5b4fc; }
+  .val  { color: #fbbf24; }
+  .val-str { color: #86efac; }
+  .comment { color: #475569; }
+  .transform-arrow { text-align: center; color: #6366f1; font-size: 22px; }
+  .transform-label { font-size: 9px; color: #6366f1; text-align: center; display: block; margin-top: 2px; }
+
+  /* TASK LIST */
+  .tasks { max-width: 900px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .task { background: #1e293b; border-radius: 10px; padding: 14px; border: 1px solid #334155; border-left: 3px solid; }
+  .t1 { border-left-color: #22c55e; }
+  .t2 { border-left-color: #3b82f6; }
+  .t3 { border-left-color: #a855f7; }
+  .t4 { border-left-color: #f59e0b; }
+  .task h4 { font-size: 12px; font-weight: 700; margin-bottom: 6px; }
+  .task ul { font-size: 11px; color: #94a3b8; padding-left: 16px; }
+  .task ul li { margin-bottom: 3px; }
+  .task .status { display: inline-block; font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 10px; margin-bottom: 6px; }
+  .s-now  { background: #166534; color: #86efac; }
+  .s-next { background: #1e3a5f; color: #7dd3fc; }
+  .s-later { background: #2d1b69; color: #c4b5fd; }
+</style>
+</head>
+<body>
+
+<h1>🏗️ Αρχιτεκτονική — Το Δικό σου Σύστημα</h1>
+<p class="subtitle">Βήμα-βήμα τι χτίζεις και πώς συνδέεται</p>
+
+<!-- TOP FLOW -->
+<div class="top-flow">
+  <div class="node n-caller">
+    <h3>📱 Client</h3>
+    <p>Όποιος καλεί<br/>το API σου<br/>(app, POS, κλπ)</p>
+  </div>
+  <div class="arrow">→<span>customer_id<br/>+ invoice data</span></div>
+  <div class="node n-your">
+    <h3>⚙️ Ο Server σου</h3>
+    <p>Παίρνει ID<br/>→ φτιάχνει JSON<br/>→ στέλνει</p>
+  </div>
+  <div class="arrow">→<span>πλήρες JSON</span></div>
+  <div class="node n-bratnet">
+    <h3>🔗 etimologiera</h3>
+    <p>bratnet API v4<br/>Middleware</p>
+  </div>
+  <div class="arrow">→<span>ΑAΔΕ call</span></div>
+  <div class="node n-aade">
+    <h3>🏛️ ΑAΔΕ</h3>
+    <p>Επιστρέφει<br/>mark + URL</p>
+  </div>
+</div>
+
+<!-- DB TABLES -->
+<div class="section">
+  <div class="section-title">📦 Βάση Δεδομένων — 2 Πίνακες</div>
+  <div class="db-grid">
+
+    <!-- company table -->
+    <div class="db-table">
+      <div class="db-table-header">
+        <span class="icon">🏢</span>
+        <h3>company (issuer)</h3>
+        <span class="badge">1 εγγραφή</span>
+      </div>
+      <div class="db-row"><span class="col-name pk">id</span><span class="col-type">INTEGER PK</span><span class="col-note"></span></div>
+      <div class="db-row"><span class="col-name">vat_number</span><span class="col-type">VARCHAR</span><span class="col-note">ΑΦΜ εκδότη</span></div>
+      <div class="db-row"><span class="col-name">branch</span><span class="col-type">INTEGER</span><span class="col-note">συνήθως 0</span></div>
+      <div class="db-row"><span class="col-name">country</span><span class="col-type">CHAR(2)</span><span class="col-note">"GR"</span></div>
+      <div class="db-row"><span class="col-name">name</span><span class="col-type">VARCHAR</span><span class="col-note">εμφανίζεται στο extra</span></div>
+      <div class="db-row"><span class="col-name">nsp_code</span><span class="col-type">VARCHAR</span><span class="col-note">"01"/"02"...</span></div>
+      <div class="db-row"><span class="col-name">tid_nsp</span><span class="col-type">VARCHAR</span><span class="col-note">ID τερματικού</span></div>
+      <div class="db-row"><span class="col-name">email</span><span class="col-type">VARCHAR</span><span class="col-note">extra.salerEmail</span></div>
+      <div class="db-row"><span class="col-name">phone</span><span class="col-type">VARCHAR</span><span class="col-note">extra.salerPhone</span></div>
+    </div>
+
+    <!-- customers table -->
+    <div class="db-table">
+      <div class="db-table-header">
+        <span class="icon">👥</span>
+        <h3>customers (counterpart)</h3>
+        <span class="badge">πολλές εγγραφές</span>
+      </div>
+      <div class="db-row"><span class="col-name pk">id</span><span class="col-type">INTEGER PK</span><span class="col-note">αυτό στέλνει ο client</span></div>
+      <div class="db-row"><span class="col-name">vat_number</span><span class="col-type">VARCHAR</span><span class="col-note">ΑΦΜ πελάτη</span></div>
+      <div class="db-row"><span class="col-name">branch</span><span class="col-type">INTEGER</span><span class="col-note">συνήθως 0</span></div>
+      <div class="db-row"><span class="col-name">country</span><span class="col-type">CHAR(2)</span><span class="col-note">"GR"</span></div>
+      <div class="db-row"><span class="col-name">city</span><span class="col-type">VARCHAR</span><span class="col-note">counterpart.address.city</span></div>
+      <div class="db-row"><span class="col-name">postal_code</span><span class="col-type">VARCHAR</span><span class="col-note">counterpart.address.postalCode</span></div>
+      <div class="db-row"><span class="col-name">display_name</span><span class="col-type">VARCHAR</span><span class="col-note">extra.customerName</span></div>
+      <div class="db-row"><span class="col-name">email</span><span class="col-type">VARCHAR</span><span class="col-note">extra.customerEmail</span></div>
+      <div class="db-row"><span class="col-name">phone</span><span class="col-type">VARCHAR</span><span class="col-note">extra.customerPhone</span></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- API FLOW -->
+<div class="api-flow">
+  <div class="api-flow-header">
+    <h3>POST /api/sendInvoice — Τι κάνει ο server σου</h3>
+    <p>Αυτό είναι το endpoint που εκθέτεις εσύ</p>
+  </div>
+  <div class="flow-step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <h4>Παραλαμβάνει minimal request</h4>
+      <p>Δέχεσαι <code>customer_id</code>, στοιχεία τιμολογίου (ποσά, τύπος), χωρίς issuer χωρίς counterpart details.</p>
+    </div>
+  </div>
+  <div class="flow-step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <h4>Ανάκτηση από DB</h4>
+      <p>SELECT από <code>company</code> → issuer fields. SELECT από <code>customers WHERE id = customer_id</code> → counterpart fields.</p>
+    </div>
+  </div>
+  <div class="flow-step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <h4>Κατασκευή πλήρους JSON</h4>
+      <p>Συνδυάζεις issuer + counterpart + invoice data → φτιάχνεις το payload που περιμένει η etimologiera.</p>
+    </div>
+  </div>
+  <div class="flow-step">
+    <div class="step-num">4</div>
+    <div class="step-body">
+      <h4>POST → etimologiera /sendSimInvoice</h4>
+      <p>Στέλνεις με Basic Auth. Περιμένεις απάντηση.</p>
+    </div>
+  </div>
+  <div class="flow-step">
+    <div class="step-num">5</div>
+    <div class="step-body">
+      <h4>Επιστρέφεις mark + invoiceUrl</h4>
+      <p>Αν πήγε καλά → επιστρέφεις <code>{ mark, invoiceUrl }</code>. Αν 701/702 → offline fallback.</p>
+    </div>
+  </div>
+</div>
+
+<!-- PAYLOAD DIFF -->
+<div class="section">
+  <div class="section-title">🔄 Τι δέχεσαι vs Τι στέλνεις</div>
+  <div class="payload-grid">
+
+    <div class="payload-box">
+      <div class="payload-header ph-in">📥 Αυτό δέχεται ο server σου</div>
+      <div class="payload-body">
+<span class="comment">{</span><br/>
+&nbsp;&nbsp;<span class="key">"customer_id"</span>: <span class="val">42</span>,<br/>
+&nbsp;&nbsp;<span class="key">"invoice_type"</span>: <span class="val-str">"2.1"</span>,<br/>
+&nbsp;&nbsp;<span class="key">"series"</span>: <span class="val-str">"ΤΠΥ"</span>,<br/>
+&nbsp;&nbsp;<span class="key">"aa"</span>: <span class="val-str">"00120853"</span>,<br/>
+&nbsp;&nbsp;<span class="key">"issue_date"</span>: <span class="val-str">"2026-04-30"</span>,<br/>
+&nbsp;&nbsp;<span class="key">"items"</span>: [{<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="key">"name"</span>: <span class="val-str">"ΥΠΗΡΕΣΙΑ"</span>,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="key">"net_value"</span>: <span class="val">1450</span>,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="key">"vat_category"</span>: <span class="val">1</span><br/>
+&nbsp;&nbsp;}]<br/>
+<span class="comment">}</span>
+      </div>
+    </div>
+
+    <div>
+      <div class="transform-arrow">⟶</div>
+      <span class="transform-label">server σου<br/>μετατρέπει</span>
+    </div>
+
+    <div class="payload-box">
+      <div class="payload-header ph-out">📤 Αυτό στέλνεις στην etimologiera</div>
+      <div class="payload-body">
+<span class="comment">{</span><br/>
+&nbsp;&nbsp;<span class="key">"issuer"</span>: { <span class="comment">/* από DB company */</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="key">"vatNumber"</span>: <span class="val-str">"979708945"</span>,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="key">"branch"</span>: <span class="val">0</span>, <span class="key">"country"</span>: <span class="val-str">"GR"</span><br/>
+&nbsp;&nbsp;},<br/>
+&nbsp;&nbsp;<span class="key">"counterpart"</span>: { <span class="comment">/* από DB customers[42] */</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="key">"vatNumber"</span>: <span class="val-str">"026883248"</span>,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="key">"branch"</span>: <span class="val">0</span>, ...<br/>
+&nbsp;&nbsp;},<br/>
+&nbsp;&nbsp;<span class="key">"invoiceHeader"</span>: { ... },<br/>
+&nbsp;&nbsp;<span class="key">"invoiceDetails"</span>: [{ ... }],<br/>
+&nbsp;&nbsp;<span class="key">"invoiceSummary"</span>: { ... }<br/>
+<span class="comment">}</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TASK LIST -->
+<div class="section">
+  <div class="section-title">✅ Τι φτιάχνεις τώρα (βήμα-βήμα)</div>
+  <div class="tasks">
+    <div class="task t1">
+      <span class="status s-now">▶ ΤΩΡΑ</span>
+      <h4>1. DB Schema</h4>
+      <ul>
+        <li>Πίνακας <code>company</code> (issuer)</li>
+        <li>Πίνακας <code>customers</code> (counterparts)</li>
+        <li>Βάλε 1 εταιρεία + 2-3 πελάτες</li>
+      </ul>
+    </div>
+    <div class="task t2">
+      <span class="status s-now">▶ ΤΩΡΑ</span>
+      <h4>2. POST /api/sendInvoice</h4>
+      <ul>
+        <li>Δέχεται customer_id + invoice data</li>
+        <li>Κάνει lookup στη DB</li>
+        <li>Φτιάχνει το bratnet JSON</li>
+        <li>Καλεί etimologiera → επιστρέφει mark</li>
+      </ul>
+    </div>
+    <div class="task t3">
+      <span class="status s-next">ΜΕΤΑ</span>
+      <h4>3. createSimSign</h4>
+      <ul>
+        <li>Υπογραφή POS πριν το invoice</li>
+        <li>Ενσωμάτωση signature στο payload</li>
+      </ul>
+    </div>
+    <div class="task t4">
+      <span class="status s-later">ΑΡΓΟΤΕΡΑ</span>
+      <h4>4. Τραπέζια / Offline / UI</h4>
+      <ul>
+        <li>openTables, transferTable</li>
+        <li>sendOfflineData fallback</li>
+        <li>Frontend interface</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
