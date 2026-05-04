@@ -5,6 +5,7 @@ import CustomersPage from './pages/CustomersPage';
 import CompanyPage from './pages/CompanyPage';
 import NewInvoicePage from './pages/NewInvoicePage';
 import InvoicesPage from './pages/InvoicesPage';
+import NewRetailPage from './pages/NewRetailPage';
 
 export default function App() {
   return (
@@ -15,6 +16,7 @@ export default function App() {
         <Route path="/company" element={<CompanyPage />} />
         <Route path="/new-invoice" element={<NewInvoicePage />} />
         <Route path="/invoices" element={<InvoicesPage />} />
+        <Route path="/retail" element={<NewRetailPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

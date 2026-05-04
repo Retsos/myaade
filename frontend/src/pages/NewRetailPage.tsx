@@ -1,11 +1,15 @@
-import { useEffect, useState } from "react";
-import { Plus, Send, Trash2 } from "lucide-react";
-import { getCustomers, saveInvoiceRecord, sendInvoice } from "../api";
-import type { Customer, InvoiceItem } from "../types";
-import { INVOICE_TYPES, VAT_CATEGORIES } from "../types";
-import { PageLoader, Spinner, SendingOverlay } from "../components/Spinner";
+import { useState } from "react";
+import { Plus, Receipt, Trash2, Send } from "lucide-react";
+import {
+  createSimSign,
+  sendSimInvoice,
+  saveInvoiceRecord,
+  getCompany,
+} from "../api";
+import type { InvoiceItem } from "../types";
+import { VAT_CATEGORIES } from "../types";
+import { Spinner, SendingOverlay } from "../components/Spinner";
 import Toast from "../components/Toast";
-
 const emptyItem = (): InvoiceItem => ({
   name: "",
   net_value: "",
@@ -13,29 +17,20 @@ const emptyItem = (): InvoiceItem => ({
   quantity: 1,
 });
 
-export default function NewInvoicePage() {
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
+export default function NewRetailPage() {
+  const [sendingMessage, setSendingMessage] = useState<string | null>(null);
   const [toast, setToast] = useState<{
     type: "success" | "error";
     message: string;
   } | null>(null);
-  const [customerId, setCustomerId] = useState("");
-  const [invoiceType, setInvoiceType] = useState("2.1");
-  const [series, setSeries] = useState("A");
+
+  const [invoiceType, setInvoiceType] = useState("11.1");
+  const [series, setSeries] = useState("ΑΛΠ");
   const [aa, setAa] = useState("1");
   const [issueDate, setIssueDate] = useState(
     new Date().toISOString().slice(0, 10),
   );
   const [items, setItems] = useState<InvoiceItem[]>([emptyItem()]);
-
-  useEffect(() => {
-    getCustomers()
-      .then(setCustomers)
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
 
   const updateItem = (
     index: number,
@@ -70,11 +65,6 @@ export default function NewInvoicePage() {
   const totalGross = parseFloat((totalNet + totalVat).toFixed(2));
 
   const handleSubmit = async () => {
-    if (!customerId) {
-      setToast({ type: "error", message: "Επιλέξτε πελάτη." });
-      return;
-    }
-
     const validItems = items.filter(
       (i) => i.name && parseFloat(i.net_value) > 0,
     );
@@ -83,49 +73,70 @@ export default function NewInvoicePage() {
       return;
     }
 
-    const typeName =
-      INVOICE_TYPES.find((t) => t.value === invoiceType)
-        ?.label?.split("—")[1]
-        ?.trim() || "Τιμολόγιο";
-
-    setSending(true);
+    setSendingMessage("Βήμα 1/2: Λήψη Υπογραφής από POS...");
     try {
-      const result = await sendInvoice({
-        customer_id: parseInt(customerId),
-        invoice_type: invoiceType,
-        invoice_type_name: typeName,
-        series,
+      // 1. SIM SIGNATURE (createSimSign)
+      const simSignRes = await createSimSign({
         aa,
         issue_date: issueDate,
-        items: validItems.map((i) => ({
-          name: i.name,
-          net_value: parseFloat(i.net_value),
-          vat_category: i.vat_category,
-          quantity: i.quantity,
-          vat_exemption_category: i.vat_category === 7 ? 7 : undefined,
-          ubl_vat_category: i.vat_category === 7 ? "E" : undefined,
-        })),
+        series,
+        invoice_type: invoiceType,
+        net_value: totalNet,
+        vat_amount: totalVat,
+        total_value: totalGross,
+        nsp_code: "01",
+        terminal_id: "54888913",
       });
 
-      const customer = customers.find((c) => c.id === parseInt(customerId));
-      await saveInvoiceRecord({
-        customer_name: customer?.display_name || "",
-        customer_vat: customer?.vat_number || "",
+      const signature = simSignRes.signature;
+      if (!signature) {
+        throw new Error("Δεν επιστράφηκε υπογραφή (signature) από την ΕΑΦΔΣΣ.");
+      }
+
+      // 2. SEND INVOICE
+      setSendingMessage("Βήμα 2/2: Αποστολή στο myDATA...");
+      const mappedItems = validItems.map((i) => ({
+        name: i.name,
+        net_value: parseFloat(i.net_value),
+        vat_category: i.vat_category,
+        quantity: i.quantity,
+        vat_exemption_category: i.vat_category === 7 ? 7 : undefined,
+        ubl_vat_category: i.vat_category === 7 ? "E" : undefined,
+      }));
+
+      const sendRes = await sendSimInvoice({
         invoice_type: invoiceType,
+        invoice_type_name: "Απόδειξη Λιανικής",
         series,
         aa,
         issue_date: issueDate,
-        total_net_value: totalNet,
-        total_vat_amount: totalVat,
-        total_gross_value: totalGross,
-        mark: String(result.invoice_mark || ""),
-        uid: result.invoice_uid || "",
-        invoice_url: result.invoice_url || "",
-      }).catch(() => {});
+        items: mappedItems,
+        signature,
+        payment_type: 8,
+      });
+
+      // 3. SAVE HISTORY
+      const mark = sendRes.invoice_mark || sendRes.mark;
+      if (mark) {
+        await saveInvoiceRecord({
+          customer_name: "ΛΙΑΝΙΚΗ",
+          customer_vat: "",
+          invoice_type: invoiceType,
+          series,
+          aa,
+          issue_date: issueDate,
+          total_net_value: totalNet,
+          total_vat_amount: totalVat,
+          total_gross_value: totalGross,
+          mark: String(mark),
+          uid: sendRes.invoice_uid || "",
+          invoice_url: sendRes.invoice_url || "",
+        }).catch(() => {});
+      }
 
       setToast({
         type: "success",
-        message: `Επιτυχής αποστολή! MARK: ${result.invoice_mark || "N/A"}`,
+        message: `Επιτυχής Έκδοση! MARK: ${mark || "N/A"}`,
       });
       setItems([emptyItem()]);
       setAa(String(parseInt(aa) + 1));
@@ -137,14 +148,13 @@ export default function NewInvoicePage() {
           e.user_message ||
           e.error_description ||
           e.message ||
-          "Αποτυχία αποστολής.",
+          e.details?.message ||
+          "Αποτυχία έκδοσης απόδειξης.",
       });
     } finally {
-      setSending(false);
+      setSendingMessage(null);
     }
   };
-
-  if (loading) return <PageLoader />;
 
   const inputCls =
     "w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/30 transition-colors";
@@ -153,7 +163,7 @@ export default function NewInvoicePage() {
 
   return (
     <div>
-      {sending && <SendingOverlay message="Αποστολή Τιμολογίου στο myDATA..." />}
+      {sendingMessage && <SendingOverlay message={sendingMessage} />}
       {toast && (
         <Toast
           type={toast.type}
@@ -162,9 +172,11 @@ export default function NewInvoicePage() {
         />
       )}
       <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-slate-100">Νέο Τιμολόγιο</h1>
+        <h1 className="text-2xl font-semibold text-slate-100 flex items-center gap-2">
+          <Receipt className="w-6 h-6 text-brand-400" /> Απόδειξη Λιανικής
+        </h1>
         <p className="text-sm text-slate-500 mt-1">
-          Συμπλήρωσε τα στοιχεία και αποστολή στο myDATA.
+          Έκδοση απόδειξης και σήμανση μέσω POS.
         </p>
       </div>
 
@@ -172,33 +184,12 @@ export default function NewInvoicePage() {
         <div className="bg-slate-850 border border-slate-800 rounded-xl p-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="sm:col-span-2">
-              <label className={labelCls}>Πελάτης</label>
-              <select
-                value={customerId}
-                onChange={(e) => setCustomerId(e.target.value)}
-                className={inputCls}
-              >
-                <option value="">- Επιλέξτε πελάτη -</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.display_name} ({c.vat_number})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="sm:col-span-2">
-              <label className={labelCls}>Τύπος</label>
-              <select
-                value={invoiceType}
-                onChange={(e) => setInvoiceType(e.target.value)}
-                className={inputCls}
-              >
-                {INVOICE_TYPES.filter(t => !t.value.startsWith('11.')).map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
+              <label className={labelCls}>Τύπος Παραστατικού</label>
+              <input
+                value="11.1 - Απόδειξη Λιανικής Πώλησης"
+                disabled
+                className={`${inputCls} opacity-70 cursor-not-allowed`}
+              />
             </div>
             <div>
               <label className={labelCls}>Σειρά</label>
@@ -216,7 +207,7 @@ export default function NewInvoicePage() {
                 className={inputCls}
               />
             </div>
-            <div className="sm:col-span-2">
+            <div className="sm:col-span-2 lg:col-span-4">
               <label className={labelCls}>Ημερομηνία</label>
               <input
                 type="date"
@@ -330,16 +321,16 @@ export default function NewInvoicePage() {
           </div>
           <button
             onClick={handleSubmit}
-            disabled={sending}
+            disabled={!!sendingMessage}
             className="flex items-center justify-center gap-2 px-6 py-3 bg-brand-500 hover:bg-brand-600 disabled:opacity-60 text-white font-medium rounded-lg transition-colors min-w-[200px]"
           >
-            {sending ? (
+            {sendingMessage ? (
               <>
-                <Spinner size={16} className="text-white" /> Αποστολή...
+                <Spinner size={16} className="text-white" /> Έκδοση...
               </>
             ) : (
               <>
-                <Send className="w-4 h-4" /> Αποστολή στο myDATA
+                <Receipt className="w-4 h-4" /> Έκδοση Απόδειξης
               </>
             )}
           </button>

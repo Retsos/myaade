@@ -24,3 +24,14 @@ export function PageLoader() {
     </div>
   );
 }
+
+export function SendingOverlay({ message = "Επεξεργασία..." }: { message?: string }) {
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 backdrop-blur-sm">
+      <div className="flex flex-col items-center gap-4 bg-slate-900 border border-slate-800 px-8 py-6 rounded-2xl shadow-2xl">
+        <Spinner size={40} className="text-brand-500" />
+        <p className="text-sm font-medium text-slate-200 animate-pulse">{message}</p>
+      </div>
+    </div>
+  );
+}

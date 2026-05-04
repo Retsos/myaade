@@ -6,6 +6,7 @@ import {
   FilePlus,
   FileText,
   Zap,
+  Receipt,
 } from 'lucide-react';
 
 const navItems = [
@@ -13,6 +14,7 @@ const navItems = [
   { to: '/company', icon: Building2, label: 'Στοιχεία Επιχείρησης' },
   { to: '/customers', icon: Users, label: 'Πελατολόγιο' },
   { to: '/new-invoice', icon: FilePlus, label: 'Νέο Τιμολόγιο' },
+  { to: '/retail', icon: Receipt, label: 'Απόδειξη Λιανικής' },
   { to: '/invoices', icon: FileText, label: 'Ιστορικό' },
 ];
 

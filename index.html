@@ -1,293 +1,489 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="el">
-<head>
-<meta charset="UTF-8"/>
-<title>Αρχιτεκτονική Συστήματος</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Sora:wght@400;600;700;800&display=swap');
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Sora', sans-serif; background: #0f1117; color: #e2e8f0; padding: 28px; min-height: 100vh; }
+  <head>
+    <meta charset="UTF-8" />
+    <title>e-Invoicing — Οδηγός Επιβίωσης</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: system-ui, sans-serif;
+        background: #e2e8f0;
+        margin: 0;
+        padding: 20px;
+        color: #0f172a;
+      }
+      h1 {
+        text-align: center;
+        font-size: 24px;
+        margin-bottom: 4px;
+        color: #1e293b;
+      }
+      .subtitle {
+        text-align: center;
+        color: #475569;
+        font-size: 14px;
+        margin-bottom: 20px;
+        font-style: italic;
+      }
+      .goal-banner {
+        max-width: 1100px;
+        margin: 0 auto 24px;
+        background: #0f172a;
+        color: #f8fafc;
+        border-radius: 8px;
+        padding: 16px 20px;
+        font-size: 14px;
+        display: flex;
+        gap: 15px;
+        align-items: center;
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+      }
+      .goal-banner .icon {
+        font-size: 28px;
+      }
 
-  h1 { text-align: center; font-size: 20px; font-weight: 800; color: #fff; margin-bottom: 4px; letter-spacing: -0.5px; }
-  .subtitle { text-align: center; font-size: 12px; color: #64748b; margin-bottom: 28px; }
+      /* ---- ARCHITECTURE OVERVIEW ---- */
+      .arch {
+        max-width: 1100px;
+        margin: 0 auto 30px;
+        display: grid;
+        grid-template-columns: 1fr 40px 1fr 40px 1fr 40px 1fr;
+        align-items: center;
+        gap: 0;
+      }
+      .arch-box {
+        border-radius: 8px;
+        padding: 15px 10px;
+        text-align: center;
+        font-weight: 500;
+        box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+      }
+      .arch-box h3 {
+        margin: 0 0 8px;
+        font-size: 14px;
+        color: #1e293b;
+      }
+      .arch-box p {
+        margin: 0;
+        font-size: 11px;
+        line-height: 1.4;
+      }
+      .arch-arrow {
+        text-align: center;
+        font-size: 24px;
+        color: #64748b;
+      }
+      .ab-your { background: #e0e7ff; border: 2px solid #4f46e5; }
+      .ab-api { background: #fff; border: 2px solid #0ea5e9; }
+      .ab-nsp { background: #fef9c3; border: 2px solid #ca8a04; }
+      .ab-aade { background: #fee2e2; border: 2px solid #e11d48; }
 
-  /* TOP FLOW */
-  .top-flow { display: flex; align-items: center; justify-content: center; gap: 0; margin-bottom: 32px; flex-wrap: wrap; }
-  .node { border-radius: 10px; padding: 14px 18px; text-align: center; min-width: 140px; }
-  .node h3 { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
-  .node p  { font-size: 10px; line-height: 1.5; opacity: 0.75; }
-  .n-caller  { background: #1e293b; border: 2px solid #475569; }
-  .n-your    { background: #1e1b4b; border: 2px solid #6366f1; box-shadow: 0 0 20px rgba(99,102,241,0.3); }
-  .n-bratnet { background: #172554; border: 2px solid #3b82f6; }
-  .n-aade    { background: #450a0a; border: 2px solid #ef4444; }
-  .arrow { color: #475569; font-size: 20px; padding: 0 8px; align-self: center; }
-  .arrow span { font-size: 9px; display: block; color: #64748b; text-align: center; }
+      /* ---- MAIN GRID ---- */
+      .main {
+        max-width: 1100px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 20px;
+      }
+      .category {
+        background: #fff;
+        border-radius: 10px;
+        padding: 16px;
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+      }
+      .cat-header {
+        border-radius: 6px;
+        padding: 12px 14px;
+        margin: -16px -16px 16px;
+      }
+      .cat-header h2 {
+        margin: 0 0 4px;
+        font-size: 15px;
+        color: #fff;
+      }
+      .cat-header p {
+        margin: 0;
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.9);
+      }
 
-  /* DB + API SECTION */
-  .section { max-width: 900px; margin: 0 auto 24px; }
-  .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #64748b; margin-bottom: 12px; border-bottom: 1px solid #1e293b; padding-bottom: 6px; }
+      .ch-sign { background: linear-gradient(135deg, #10b981, #059669); }
+      .ch-invoice { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+      .ch-pay { background: linear-gradient(135deg, #f59e0b, #d97706); }
+      .ch-cancel { background: linear-gradient(135deg, #ef4444, #dc2626); }
 
-  .db-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
-  .db-table { background: #1e293b; border-radius: 10px; overflow: hidden; border: 1px solid #334155; }
-  .db-table-header { background: #334155; padding: 10px 14px; display: flex; align-items: center; gap: 8px; }
-  .db-table-header .icon { font-size: 16px; }
-  .db-table-header h3 { font-size: 13px; font-weight: 700; }
-  .db-table-header .badge { margin-left: auto; background: #6366f1; color: #fff; font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 10px; }
-  .db-row { padding: 7px 14px; display: flex; justify-content: space-between; border-bottom: 1px solid #1e293b; font-size: 11px; }
-  .db-row:last-child { border-bottom: none; }
-  .db-row .col-name { font-family: 'JetBrains Mono', monospace; color: #a5b4fc; }
-  .db-row .col-type { color: #64748b; font-size: 10px; }
-  .db-row .col-note { color: #22c55e; font-size: 10px; }
-  .pk { color: #fbbf24 !important; }
+      .endpoint {
+        border-radius: 6px;
+        padding: 12px;
+        margin-bottom: 12px;
+        border: 1px solid;
+      }
+      .ep-green { background: #f0fdf4; border-color: #bbf7d0; }
+      .ep-blue { background: #eff6ff; border-color: #bfdbfe; }
+      .ep-yellow { background: #fffbeb; border-color: #fde68a; }
+      .ep-red { background: #fef2f2; border-color: #fecaca; }
 
-  /* API FLOW */
-  .api-flow { background: #1e293b; border-radius: 10px; border: 1px solid #334155; overflow: hidden; max-width: 900px; margin: 0 auto 24px; }
-  .api-flow-header { background: #6366f1; padding: 10px 16px; }
-  .api-flow-header h3 { font-size: 13px; font-weight: 700; color: #fff; }
-  .api-flow-header p { font-size: 11px; color: #c7d2fe; }
-  .flow-step { display: flex; gap: 14px; padding: 12px 16px; border-bottom: 1px solid #334155; align-items: flex-start; }
-  .flow-step:last-child { border-bottom: none; }
-  .step-num { background: #6366f1; color: #fff; font-size: 11px; font-weight: 700; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
-  .step-body h4 { font-size: 12px; font-weight: 700; margin-bottom: 3px; color: #e2e8f0; }
-  .step-body p  { font-size: 11px; color: #94a3b8; }
-  .step-body code { font-family: 'JetBrains Mono', monospace; font-size: 10px; background: #0f1117; padding: 2px 6px; border-radius: 4px; color: #a5b4fc; }
+      .ep-method {
+        display: inline-block;
+        font-size: 10px;
+        font-weight: 700;
+        color: #fff;
+        padding: 2px 6px;
+        border-radius: 4px;
+        margin-bottom: 6px;
+      }
+      .m-post { background: #2563eb; }
+      .m-get { background: #059669; }
 
-  /* PAYLOAD DIFF */
-  .payload-grid { display: grid; grid-template-columns: 1fr 40px 1fr; gap: 8px; max-width: 900px; margin: 0 auto 24px; align-items: center; }
-  .payload-box { background: #1e293b; border-radius: 10px; border: 1px solid #334155; overflow: hidden; }
-  .payload-header { padding: 8px 12px; font-size: 11px; font-weight: 700; }
-  .ph-in  { background: #164e63; color: #7dd3fc; }
-  .ph-out { background: #14532d; color: #86efac; }
-  .payload-body { padding: 10px 12px; font-family: 'JetBrains Mono', monospace; font-size: 10px; line-height: 1.8; }
-  .key  { color: #a5b4fc; }
-  .val  { color: #fbbf24; }
-  .val-str { color: #86efac; }
-  .comment { color: #475569; }
-  .transform-arrow { text-align: center; color: #6366f1; font-size: 22px; }
-  .transform-label { font-size: 9px; color: #6366f1; text-align: center; display: block; margin-top: 2px; }
+      .endpoint h4 {
+        margin: 0 0 6px;
+        font-size: 13px;
+        color: #0f172a;
+      }
+      .endpoint .desc {
+        font-size: 11px;
+        color: #334155;
+        margin: 0 0 8px;
+        line-height: 1.4;
+      }
+      .fields {
+        font-size: 11px;
+        background: rgba(0, 0, 0, 0.03);
+        border-radius: 4px;
+        padding: 8px;
+      }
+      .fields code {
+        display: block;
+        margin: 2px 0;
+        color: #1e293b;
+        font-family: monospace;
+      }
+      .fields .req { color: #dc2626; font-weight: bold; }
+      .fields .ret { color: #059669; font-weight: bold; }
 
-  /* TASK LIST */
-  .tasks { max-width: 900px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .task { background: #1e293b; border-radius: 10px; padding: 14px; border: 1px solid #334155; border-left: 3px solid; }
-  .t1 { border-left-color: #22c55e; }
-  .t2 { border-left-color: #3b82f6; }
-  .t3 { border-left-color: #a855f7; }
-  .t4 { border-left-color: #f59e0b; }
-  .task h4 { font-size: 12px; font-weight: 700; margin-bottom: 6px; }
-  .task ul { font-size: 11px; color: #94a3b8; padding-left: 16px; }
-  .task ul li { margin-bottom: 3px; }
-  .task .status { display: inline-block; font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 10px; margin-bottom: 6px; }
-  .s-now  { background: #166534; color: #86efac; }
-  .s-next { background: #1e3a5f; color: #7dd3fc; }
-  .s-later { background: #2d1b69; color: #c4b5fd; }
-</style>
-</head>
-<body>
+      /* ---- FLOW ---- */
+      .flow {
+        max-width: 1100px;
+        margin: 30px auto 0;
+        background: #fff;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+      }
+      .flow h2 {
+        margin: 0 0 20px;
+        font-size: 18px;
+        color: #0f172a;
+      }
+      .flow-tabs {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+      .tab {
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        background: #f1f5f9;
+        color: #475569;
+        border: 1px solid #cbd5e1;
+      }
+      .tab.active {
+        background: #1e293b;
+        color: #fff;
+        border-color: #1e293b;
+      }
+      .flow-content { display: none; }
+      .flow-content.active { display: block; }
+      
+      .flow-steps {
+        display: flex;
+        gap: 15px;
+        align-items: stretch;
+        flex-wrap: wrap;
+      }
+      .fstep {
+        flex: 1;
+        min-width: 200px;
+        background: #f8fafc;
+        border-radius: 8px;
+        padding: 15px;
+        border-top: 4px solid #4f46e5;
+        box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      }
+      .fstep .fn {
+        font-size: 24px;
+        font-weight: 800;
+        color: #4f46e5;
+        margin-bottom: 5px;
+      }
+      .fstep h4 {
+        margin: 0 0 6px;
+        font-size: 14px;
+        color: #0f172a;
+      }
+      .fstep p {
+        margin: 0 0 10px;
+        font-size: 12px;
+        color: #475569;
+        line-height: 1.4;
+      }
+      .fstep .api-call {
+        font-size: 11px;
+        font-weight: bold;
+        color: #1e293b;
+        background: #e2e8f0;
+        border-radius: 4px;
+        padding: 4px 8px;
+        display: inline-block;
+        font-family: monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🧾 e-Invoicing — Οδηγός Πρακτικής Επιβίωσης</h1>
+    <p class="subtitle">Ο χάρτης του λαβύρινθου της ΑΑΔΕ, κομμένος και ραμμένος στα μέτρα σου.</p>
 
-<h1>🏗️ Αρχιτεκτονική — Το Δικό σου Σύστημα</h1>
-<p class="subtitle">Βήμα-βήμα τι χτίζεις και πώς συνδέεται</p>
-
-<!-- TOP FLOW -->
-<div class="top-flow">
-  <div class="node n-caller">
-    <h3>📱 Client</h3>
-    <p>Όποιος καλεί<br/>το API σου<br/>(app, POS, κλπ)</p>
-  </div>
-  <div class="arrow">→<span>customer_id<br/>+ invoice data</span></div>
-  <div class="node n-your">
-    <h3>⚙️ Ο Server σου</h3>
-    <p>Παίρνει ID<br/>→ φτιάχνει JSON<br/>→ στέλνει</p>
-  </div>
-  <div class="arrow">→<span>πλήρες JSON</span></div>
-  <div class="node n-bratnet">
-    <h3>🔗 etimologiera</h3>
-    <p>bratnet API v4<br/>Middleware</p>
-  </div>
-  <div class="arrow">→<span>ΑAΔΕ call</span></div>
-  <div class="node n-aade">
-    <h3>🏛️ ΑAΔΕ</h3>
-    <p>Επιστρέφει<br/>mark + URL</p>
-  </div>
-</div>
-
-<!-- DB TABLES -->
-<div class="section">
-  <div class="section-title">📦 Βάση Δεδομένων — 2 Πίνακες</div>
-  <div class="db-grid">
-
-    <!-- company table -->
-    <div class="db-table">
-      <div class="db-table-header">
-        <span class="icon">🏢</span>
-        <h3>company (issuer)</h3>
-        <span class="badge">1 εγγραφή</span>
+    <div class="goal-banner">
+      <div class="icon">🎯</div>
+      <div>
+        <strong>Ο Ρόλος σου:</strong> Είσαι ο μεταφραστής. Η εφαρμογή σου (Express) παίρνει τα ανθρώπινα δεδομένα, τα κάνει αυστηρά JSON, και παλεύει με τα endpoints του παρόχου για να αποσπάσει το ιερό MARK της ΑΑΔΕ. Χωρίς MARK, το τιμολόγιο είναι απλά ένα κομμάτι άχρηστου χαρτιού.
       </div>
-      <div class="db-row"><span class="col-name pk">id</span><span class="col-type">INTEGER PK</span><span class="col-note"></span></div>
-      <div class="db-row"><span class="col-name">vat_number</span><span class="col-type">VARCHAR</span><span class="col-note">ΑΦΜ εκδότη</span></div>
-      <div class="db-row"><span class="col-name">branch</span><span class="col-type">INTEGER</span><span class="col-note">συνήθως 0</span></div>
-      <div class="db-row"><span class="col-name">country</span><span class="col-type">CHAR(2)</span><span class="col-note">"GR"</span></div>
-      <div class="db-row"><span class="col-name">name</span><span class="col-type">VARCHAR</span><span class="col-note">εμφανίζεται στο extra</span></div>
-      <div class="db-row"><span class="col-name">nsp_code</span><span class="col-type">VARCHAR</span><span class="col-note">"01"/"02"...</span></div>
-      <div class="db-row"><span class="col-name">tid_nsp</span><span class="col-type">VARCHAR</span><span class="col-note">ID τερματικού</span></div>
-      <div class="db-row"><span class="col-name">email</span><span class="col-type">VARCHAR</span><span class="col-note">extra.salerEmail</span></div>
-      <div class="db-row"><span class="col-name">phone</span><span class="col-type">VARCHAR</span><span class="col-note">extra.salerPhone</span></div>
     </div>
 
-    <!-- customers table -->
-    <div class="db-table">
-      <div class="db-table-header">
-        <span class="icon">👥</span>
-        <h3>customers (counterpart)</h3>
-        <span class="badge">πολλές εγγραφές</span>
+    <div class="arch">
+      <div class="arch-box ab-your">
+        <h3>💻 Η Εφαρμογή σου</h3>
+        <p>Express Backend + SQLite<br/>Ο τροχονόμος των δεδομένων</p>
       </div>
-      <div class="db-row"><span class="col-name pk">id</span><span class="col-type">INTEGER PK</span><span class="col-note">αυτό στέλνει ο client</span></div>
-      <div class="db-row"><span class="col-name">vat_number</span><span class="col-type">VARCHAR</span><span class="col-note">ΑΦΜ πελάτη</span></div>
-      <div class="db-row"><span class="col-name">branch</span><span class="col-type">INTEGER</span><span class="col-note">συνήθως 0</span></div>
-      <div class="db-row"><span class="col-name">country</span><span class="col-type">CHAR(2)</span><span class="col-note">"GR"</span></div>
-      <div class="db-row"><span class="col-name">city</span><span class="col-type">VARCHAR</span><span class="col-note">counterpart.address.city</span></div>
-      <div class="db-row"><span class="col-name">postal_code</span><span class="col-type">VARCHAR</span><span class="col-note">counterpart.address.postalCode</span></div>
-      <div class="db-row"><span class="col-name">display_name</span><span class="col-type">VARCHAR</span><span class="col-note">extra.customerName</span></div>
-      <div class="db-row"><span class="col-name">email</span><span class="col-type">VARCHAR</span><span class="col-note">extra.customerEmail</span></div>
-      <div class="db-row"><span class="col-name">phone</span><span class="col-type">VARCHAR</span><span class="col-note">extra.customerPhone</span></div>
-    </div>
-
-  </div>
-</div>
-
-<!-- API FLOW -->
-<div class="api-flow">
-  <div class="api-flow-header">
-    <h3>POST /api/sendInvoice — Τι κάνει ο server σου</h3>
-    <p>Αυτό είναι το endpoint που εκθέτεις εσύ</p>
-  </div>
-  <div class="flow-step">
-    <div class="step-num">1</div>
-    <div class="step-body">
-      <h4>Παραλαμβάνει minimal request</h4>
-      <p>Δέχεσαι <code>customer_id</code>, στοιχεία τιμολογίου (ποσά, τύπος), χωρίς issuer χωρίς counterpart details.</p>
-    </div>
-  </div>
-  <div class="flow-step">
-    <div class="step-num">2</div>
-    <div class="step-body">
-      <h4>Ανάκτηση από DB</h4>
-      <p>SELECT από <code>company</code> → issuer fields. SELECT από <code>customers WHERE id = customer_id</code> → counterpart fields.</p>
-    </div>
-  </div>
-  <div class="flow-step">
-    <div class="step-num">3</div>
-    <div class="step-body">
-      <h4>Κατασκευή πλήρους JSON</h4>
-      <p>Συνδυάζεις issuer + counterpart + invoice data → φτιάχνεις το payload που περιμένει η etimologiera.</p>
-    </div>
-  </div>
-  <div class="flow-step">
-    <div class="step-num">4</div>
-    <div class="step-body">
-      <h4>POST → etimologiera /sendSimInvoice</h4>
-      <p>Στέλνεις με Basic Auth. Περιμένεις απάντηση.</p>
-    </div>
-  </div>
-  <div class="flow-step">
-    <div class="step-num">5</div>
-    <div class="step-body">
-      <h4>Επιστρέφεις mark + invoiceUrl</h4>
-      <p>Αν πήγε καλά → επιστρέφεις <code>{ mark, invoiceUrl }</code>. Αν 701/702 → offline fallback.</p>
-    </div>
-  </div>
-</div>
-
-<!-- PAYLOAD DIFF -->
-<div class="section">
-  <div class="section-title">🔄 Τι δέχεσαι vs Τι στέλνεις</div>
-  <div class="payload-grid">
-
-    <div class="payload-box">
-      <div class="payload-header ph-in">📥 Αυτό δέχεται ο server σου</div>
-      <div class="payload-body">
-<span class="comment">{</span><br/>
-&nbsp;&nbsp;<span class="key">"customer_id"</span>: <span class="val">42</span>,<br/>
-&nbsp;&nbsp;<span class="key">"invoice_type"</span>: <span class="val-str">"2.1"</span>,<br/>
-&nbsp;&nbsp;<span class="key">"series"</span>: <span class="val-str">"ΤΠΥ"</span>,<br/>
-&nbsp;&nbsp;<span class="key">"aa"</span>: <span class="val-str">"00120853"</span>,<br/>
-&nbsp;&nbsp;<span class="key">"issue_date"</span>: <span class="val-str">"2026-04-30"</span>,<br/>
-&nbsp;&nbsp;<span class="key">"items"</span>: [{<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="key">"name"</span>: <span class="val-str">"ΥΠΗΡΕΣΙΑ"</span>,<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="key">"net_value"</span>: <span class="val">1450</span>,<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="key">"vat_category"</span>: <span class="val">1</span><br/>
-&nbsp;&nbsp;}]<br/>
-<span class="comment">}</span>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box ab-api">
+        <h3>⚙️ etimologiera API</h3>
+        <p>Ο Πάροχος<br/>Ελέγχει & μεταφράζει σε XML</p>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box ab-nsp">
+        <h3>🏦 POS Provider (NSP)</h3>
+        <p>Παράγει τις ψηφιακές υπογραφές για λιανική</p>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box ab-aade">
+        <h3>🏛️ ΑAΔΕ (myDATA)</h3>
+        <p>Το ψηφιακό κράτος.<br/>Επιστρέφει το MARK</p>
       </div>
     </div>
 
-    <div>
-      <div class="transform-arrow">⟶</div>
-      <span class="transform-label">server σου<br/>μετατρέπει</span>
-    </div>
+    <div class="main">
+      <div class="category">
+        <div class="cat-header ch-invoice">
+          <h2>🧾 Έκδοση Παραστατικών</h2>
+          <p>Τα βαρέα όπλα της τιμολόγησης</p>
+        </div>
 
-    <div class="payload-box">
-      <div class="payload-header ph-out">📤 Αυτό στέλνεις στην etimologiera</div>
-      <div class="payload-body">
-<span class="comment">{</span><br/>
-&nbsp;&nbsp;<span class="key">"issuer"</span>: { <span class="comment">/* από DB company */</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="key">"vatNumber"</span>: <span class="val-str">"979708945"</span>,<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="key">"branch"</span>: <span class="val">0</span>, <span class="key">"country"</span>: <span class="val-str">"GR"</span><br/>
-&nbsp;&nbsp;},<br/>
-&nbsp;&nbsp;<span class="key">"counterpart"</span>: { <span class="comment">/* από DB customers[42] */</span><br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="key">"vatNumber"</span>: <span class="val-str">"026883248"</span>,<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="key">"branch"</span>: <span class="val">0</span>, ...<br/>
-&nbsp;&nbsp;},<br/>
-&nbsp;&nbsp;<span class="key">"invoiceHeader"</span>: { ... },<br/>
-&nbsp;&nbsp;<span class="key">"invoiceDetails"</span>: [{ ... }],<br/>
-&nbsp;&nbsp;<span class="key">"invoiceSummary"</span>: { ... }<br/>
-<span class="comment">}</span>
+        <div class="endpoint ep-blue">
+          <span class="ep-method m-post">POST</span>
+          <h4>/sendInvoice</h4>
+          <p class="desc"><strong>Η Παλιά Καλή Χονδρική (B2B):</strong> Στέλνει απλό τιμολόγιο. Χωρίς υπογραφές, χωρίς POS. Απλά, καθαρά δεδομένα.</p>
+          <div class="fields">
+            <code><span class="req">*</span> invoiceHeader & issuer</code>
+            <code><span class="req">*</span> invoiceDetails (Γραμμές)</code>
+            <em style="color:#dc2626;">ΑΠΑΓΟΡΕΥΕΤΑΙ το πεδίο extra.signature εδώ!</em>
+            <code><span class="ret">→</span> MARK + UID</code>
+          </div>
+        </div>
+
+        <div class="endpoint ep-blue">
+          <span class="ep-method m-post">POST</span>
+          <h4>/sendSimInvoice</h4>
+          <p class="desc"><strong>Η Λιανική της Εποχής (POS):</strong> Στέλνει απόδειξη <em>μαζί</em> με τα στοιχεία συναλλαγής του POS.</p>
+          <div class="fields">
+            <code><span class="req">*</span> extra.signature (Από createSimSign)</code>
+            <code><span class="req">*</span> extra.transactionId</code>
+            <code><span class="req">*</span> tidNsp (ID Τερματικού POS)</code>
+            <code><span class="req">*</span> isUnsigned: true</code>
+            <code><span class="ret">→</span> MARK + UID</code>
+          </div>
+        </div>
+        
+        <div class="endpoint ep-blue">
+          <span class="ep-method m-post">POST</span>
+          <h4>/sendOfflineData</h4>
+          <p class="desc">Το σχέδιο διαφυγής όταν πέσει το ίντερνετ. Στέλνεις τα στοιχεία ετεροχρονισμένα από τη SQLite σου.</p>
+        </div>
+      </div>
+
+      <div class="category">
+        <div class="cat-header ch-sign">
+          <h2>✍️ Υπογραφές POS</h2>
+          <p>Δέσιμο παραστατικού με την κάρτα</p>
+        </div>
+
+        <div class="endpoint ep-green">
+          <span class="ep-method m-post">POST</span>
+          <h4>/createSimSign</h4>
+          <p class="desc">Βήμα 1ο για Λιανική. "Χτυπάς" αυτό ΠΡΙΝ το sendSimInvoice για να πάρεις το ψηφιακό ΟΚ της πληρωμής.</p>
+          <div class="fields">
+            <code><span class="req">*</span> invoiceType (π.χ. 11.1 ΑΛΠ)</code>
+            <code><span class="req">*</span> totalValue & paymentAmount</code>
+            <code><span class="req">*</span> nspCode & terminalId</code>
+            <code><span class="ret">→</span> hSignature (Η υπογραφή)</code>
+          </div>
+        </div>
+
+        <div class="endpoint ep-green">
+          <span class="ep-method m-post">POST</span>
+          <h4>/createSign</h4>
+          <p class="desc">Όταν το τιμολόγιο έχει κοπεί (έχει UID) και ο πελάτης αποφασίζει να πληρώσει με κάρτα <em>αργότερα</em>.</p>
+          <div class="fields">
+            <code><span class="req">*</span> uid (Από το sendInvoice)</code>
+            <code><span class="req">*</span> payAmount</code>
+            <code><span class="ret">→</span> hSignature</code>
+          </div>
+        </div>
+      </div>
+
+      <div class="category">
+        <div class="cat-header ch-pay">
+          <h2>💳 Ενημερώσεις & Ακυρώσεις</h2>
+          <p>Διορθώνοντας τα λάθη της ζωής</p>
+        </div>
+
+        <div class="endpoint ep-yellow">
+          <span class="ep-method m-post">POST</span>
+          <h4>/updatePayments</h4>
+          <p class="desc">Συνοδεύει το createSign. Ενημερώνει την ΑΑΔΕ: "Το παλιό τιμολόγιο τελικά πληρώθηκε".</p>
+          <div class="fields">
+            <code><span class="req">*</span> uid</code>
+            <code><span class="req">*</span> hSignature & transactionId</code>
+          </div>
+        </div>
+
+        <div class="endpoint ep-red">
+          <span class="ep-method m-post">POST</span>
+          <h4>/cancelSimSign & /cancelSign</h4>
+          <p class="desc">Ακυρώνει την υπογραφή αν στραβώσει η συναλλαγή (π.χ. απορρίφθηκε η κάρτα).</p>
+        </div>
+
+        <div class="endpoint ep-red">
+          <span class="ep-method m-post">POST</span>
+          <h4>/cancelDeliveryNote</h4>
+          <p class="desc">Στέλνεις το MARK ενός Δελτίου Αποστολής (τύπου 9.3) που δεν έφτασε ποτέ στον προορισμό του, για να διαγραφεί.</p>
+        </div>
       </div>
     </div>
-  </div>
-</div>
 
-<!-- TASK LIST -->
-<div class="section">
-  <div class="section-title">✅ Τι φτιάχνεις τώρα (βήμα-βήμα)</div>
-  <div class="tasks">
-    <div class="task t1">
-      <span class="status s-now">▶ ΤΩΡΑ</span>
-      <h4>1. DB Schema</h4>
-      <ul>
-        <li>Πίνακας <code>company</code> (issuer)</li>
-        <li>Πίνακας <code>customers</code> (counterparts)</li>
-        <li>Βάλε 1 εταιρεία + 2-3 πελάτες</li>
-      </ul>
-    </div>
-    <div class="task t2">
-      <span class="status s-now">▶ ΤΩΡΑ</span>
-      <h4>2. POST /api/sendInvoice</h4>
-      <ul>
-        <li>Δέχεται customer_id + invoice data</li>
-        <li>Κάνει lookup στη DB</li>
-        <li>Φτιάχνει το bratnet JSON</li>
-        <li>Καλεί etimologiera → επιστρέφει mark</li>
-      </ul>
-    </div>
-    <div class="task t3">
-      <span class="status s-next">ΜΕΤΑ</span>
-      <h4>3. createSimSign</h4>
-      <ul>
-        <li>Υπογραφή POS πριν το invoice</li>
-        <li>Ενσωμάτωση signature στο payload</li>
-      </ul>
-    </div>
-    <div class="task t4">
-      <span class="status s-later">ΑΡΓΟΤΕΡΑ</span>
-      <h4>4. Τραπέζια / Offline / UI</h4>
-      <ul>
-        <li>openTables, transferTable</li>
-        <li>sendOfflineData fallback</li>
-        <li>Frontend interface</li>
-      </ul>
-    </div>
-  </div>
-</div>
+    <div class="flow">
+      <h2>🔄 Τα Πραγματικά Σενάρια της Αγοράς (Flows)</h2>
+      <div class="flow-tabs">
+        <div class="tab active" onclick="showFlow('b2b')">Φάση 1: Χονδρική (B2B)</div>
+        <div class="tab" onclick="showFlow('retail')">Φάση 2: Λιανική POS</div>
+        <div class="tab" onclick="showFlow('late')">Φάση 3: Ετεροχρονισμένη Πληρωμή</div>
+        <div class="tab" onclick="showFlow('offline')">Φάση 5: Offline Mode</div>
+      </div>
 
-</body>
+      <div id="flow-b2b" class="flow-content active">
+        <div class="flow-steps">
+          <div class="fstep" style="border-color: #3b82f6">
+            <div class="fn" style="color: #3b82f6">1</div>
+            <h4>Ετοιμασία Δεδομένων</h4>
+            <p>Η React μαζεύει πελάτη και ποσά. Το Express φτιάχνει το JSON χωρίς πεδία υπογραφών.</p>
+          </div>
+          <div class="fstep" style="border-color: #2563eb">
+            <div class="fn" style="color: #2563eb">2</div>
+            <h4>Απευθείας Βολή</h4>
+            <p>Στέλνεις τα δεδομένα. Καμία επαφή με POS.</p>
+            <span class="api-call">POST /sendInvoice</span>
+          </div>
+          <div class="fstep" style="border-color: #059669">
+            <div class="fn" style="color: #059669">3</div>
+            <h4>Αποθήκευση στη SQLite</h4>
+            <p>Η ΑΑΔΕ γυρνάει το MARK. Το καρφώνεις στη βάση σου δίπλα στο τιμολόγιο. Τέλος.</p>
+            <span class="api-call">MARK + UID</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="flow-retail" class="flow-content">
+        <div class="flow-steps">
+          <div class="fstep" style="border-color: #10b981">
+            <div class="fn" style="color: #10b981">1</div>
+            <h4>Το Προξενιό (SimSign)</h4>
+            <p>Πληρωμή στο ταμείο. Ζητάς ψηφιακή υπογραφή βάσει ποσού.</p>
+            <span class="api-call">POST /createSimSign</span>
+          </div>
+          <div class="fstep" style="border-color: #3b82f6">
+            <div class="fn" style="color: #3b82f6">2</div>
+            <h4>Ο Γάμος (SimInvoice)</h4>
+            <p>Παίρνεις την υπογραφή και την "κολλάς" στην απόδειξη.</p>
+            <span class="api-call">POST /sendSimInvoice</span>
+          </div>
+          <div class="fstep" style="border-color: #059669">
+            <div class="fn" style="color: #059669">3</div>
+            <h4>Ολοκλήρωση</h4>
+            <p>Επιστρέφει το MARK. Η συναλλαγή και το παραστατικό κλείδωσαν ταυτόχρονα.</p>
+          </div>
+        </div>
+      </div>
+
+      <div id="flow-late" class="flow-content">
+        <div class="flow-steps">
+          <div class="fstep" style="border-color: #1e293b">
+            <div class="fn" style="color: #1e293b">1</div>
+            <h4>Υπάρχον Τιμολόγιο</h4>
+            <p>Το παραστατικό κόπηκε χθες μέσω /sendInvoice (έχεις UID).</p>
+          </div>
+          <div class="fstep" style="border-color: #10b981">
+            <div class="fn" style="color: #10b981">2</div>
+            <h4>Νέα Υπογραφή</h4>
+            <p>Ο πελάτης βάζει κάρτα σήμερα. Ζητάς υπογραφή για το παλιό UID.</p>
+            <span class="api-call">POST /createSign</span>
+          </div>
+          <div class="fstep" style="border-color: #d97706">
+            <div class="fn" style="color: #d97706">3</div>
+            <h4>Ενημέρωση (Update)</h4>
+            <p>Στέλνεις την υπογραφή στην ΑΑΔΕ για να ξεχρεώσεις το παραστατικό.</p>
+            <span class="api-call">POST /updatePayments</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="flow-offline" class="flow-content">
+        <div class="flow-steps">
+          <div class="fstep" style="border-color: #ef4444">
+            <div class="fn" style="color: #ef4444">1</div>
+            <h4>Δίκτυο Κάτω (Error 701)</h4>
+            <p>Αποτυγχάνει το /sendInvoice. Το μαγαζί πρέπει να δουλέψει.</p>
+          </div>
+          <div class="fstep" style="border-color: #475569">
+            <div class="fn" style="color: #475569">2</div>
+            <h4>Τοπική Διάσωση</h4>
+            <p>Η SQLite σου σώζει τα δεδομένα στον πίνακα Offline_Invoices.</p>
+          </div>
+          <div class="fstep" style="border-color: #3b82f6">
+            <div class="fn" style="color: #3b82f6">3</div>
+            <h4>Η Ανάσταση</h4>
+            <p>Όταν επανέλθει το ίντερνετ, στέλνεις όλο το πακέτο μαζικά.</p>
+            <span class="api-call">POST /sendOfflineData</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <script>
+      function showFlow(id) {
+        document.querySelectorAll('.flow-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+        document.getElementById('flow-' + id).classList.add('active');
+        event.target.classList.add('active');
+      }
+    </script>
+  </body>
 </html>
