@@ -15,7 +15,7 @@ const navItems = [
   { to: '/customers', icon: Users, label: 'Πελατολόγιο' },
   { to: '/new-invoice', icon: FilePlus, label: 'Νέο Τιμολόγιο' },
   { to: '/retail', icon: Receipt, label: 'Απόδειξη Λιανικής' },
-  { to: '/invoices', icon: FileText, label: 'Ιστορικό' },
+  { to: '/history', icon: FileText, label: 'Ιστορικό' },
 ];
 
 export default function Sidebar() {

@@ -40,6 +40,13 @@ export async function createSimSign(payload: Record<string, unknown>) {
   }
   return data;
 }
+
+export async function createSign(payload: any) {
+  const { data } = await api.post('/createSign', payload);
+  if (!data.success) throw data;
+  return data;
+}
+
 export async function sendSimInvoice(payload: Record<string, unknown>) {
   const { data } = await api.post('/sendSimInvoice', payload);
   if (!data.success) throw data;
@@ -64,6 +71,12 @@ export async function cancelInvoice(id: number) {
 
 export async function getCredits() {
   const { data } = await api.get('/credits');
+  return data;
+}
+
+export async function payInvoicePOS(id: number, pay_amount: number) {
+  const { data } = await api.post(`/invoices/${id}/pay`, { pay_amount });
+  if (!data.success) throw data;
   return data;
 }
 

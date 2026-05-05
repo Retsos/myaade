@@ -28,7 +28,7 @@ db.prepare(
     gemh TEXT,
     activity TEXT
   )
-`,
+`
 ).run();
 
 db.prepare(
@@ -47,10 +47,18 @@ db.prepare(
     mark TEXT,
     uid TEXT,
     invoice_url TEXT,
-    status TEXT DEFAULT 'sent',
+    status TEXT DEFAULT 'PENDING',
+    payment_method TEXT DEFAULT 'NONE',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )
-`,
+`
 ).run();
+
+// Migrate existing table to add payment_method if missing
+try {
+  db.prepare(`ALTER TABLE invoices ADD COLUMN payment_method TEXT DEFAULT 'NONE'`).run();
+} catch (e) {
+  // Column already exists
+}
 
 module.exports = db;

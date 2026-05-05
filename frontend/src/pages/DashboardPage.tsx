@@ -52,7 +52,15 @@ export default function DashboardPage() {
     ]).then(([comp, custs, invs]) => {
       setCompany(comp);
       setCustomers(custs);
-      setInvoices(invs);
+      
+      let safeInvoices = [];
+      if (invs?.success && Array.isArray(invs.invoices)) {
+        safeInvoices = invs.invoices;
+      } else if (Array.isArray(invs)) {
+        safeInvoices = invs;
+      }
+      setInvoices(safeInvoices);
+      
       setLoading(false);
     });
   }, []);
@@ -117,7 +125,7 @@ export default function DashboardPage() {
               Πρόσφατα Παραστατικά
             </h2>
             <button
-              onClick={() => navigate("/invoices")}
+              onClick={() => navigate("/history")}
               className="text-xs text-brand-400 hover:text-brand-300 flex items-center gap-1 transition-colors"
             >
               Όλα <ArrowRight className="w-3 h-3" />

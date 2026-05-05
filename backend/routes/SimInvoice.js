@@ -99,10 +99,10 @@ router.post("/sendSimInvoice", async (req, res) => {
         invoiceTypeName: req.body.invoice_type_name || typeConfig.label,
         paymentMethodName: "Κάρτα (POS)",
         
-        // --- ΤΑ ΙΕΡΑ ΠΕΔΙΑ ΤΟΥ POS ---
+        // --- ΤΑ ΠΕΔΙΑ ΤΟΥ POS ---
         signature: signature,
         nspCode: "01",
-        transactionId: "POS-TRANS-" + Math.floor(Math.random() * 1000000), // Dummy Transaction
+        transactionId: "POS-TRANS-" + Math.floor(Math.random() * 1000000),
         tipAmount: 0
       },
 
