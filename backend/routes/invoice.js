@@ -116,7 +116,7 @@ router.post("/sendInvoice", async (req, res) => {
       {
         B2G: null,
         ublFields: null,
-        isUnsigned: typeConfig.isUnsigned,
+        isUnsigned: req.body.signature ? true : typeConfig.isUnsigned,
 
         issuer: {
           vatNumber: company.vat_number,
@@ -189,11 +189,11 @@ router.post("/sendInvoice", async (req, res) => {
           altCustAddress: null,
 
           invoiceTypeName: req.body.invoice_type_name || typeConfig.label,
-          paymentMethodName: req.body.payment_method_name || "Επί Πιστώσει",
-          nspCode: null,
-          signature: null,
-          tipAmount: null,
-          transactionId: null,
+          paymentMethodName: req.body.payment_method_name || (req.body.signature ? "Κάρτα (POS)" : "Επί Πιστώσει"),
+          nspCode: req.body.signature ? "01" : null,
+          signature: req.body.signature || null,
+          tipAmount: req.body.signature ? 0 : null,
+          transactionId: req.body.transaction_id || (req.body.signature ? "POS-TRANS-" + Math.floor(Math.random() * 1000000) : null),
           vatExemptionCategoryName: null,
           vehicleNumber: null,
           movePurpose: null,
@@ -282,7 +282,7 @@ router.post("/sendInvoice", async (req, res) => {
               amount: totalGrossValue,
               tid: null,
               tipAmount: null,
-              transactionId: null,
+              transactionId: req.body.transaction_id || (req.body.signature ? "POS-TRANS-" + Math.floor(Math.random() * 1000000) : null),
               providersSignature: null,
               ecrToken: null,
               paymentMethodInfo: null,
@@ -290,7 +290,7 @@ router.post("/sendInvoice", async (req, res) => {
           ],
         },
 
-        tidNsp: null,
+        tidNsp: req.body.signature ? "54888913" : null,
         transmissionFailure: null,
         packingsDeclarations: null,
         taxesTotals: null,
@@ -303,7 +303,9 @@ router.post("/sendInvoice", async (req, res) => {
 
   // --- 8. Αποστολή ---
   try {
-    const response = await bratnetApi.post("/sendInvoice", payload);
+    //αν έχω signature στέλνω simInvoice αλλιώς κανονικό
+    const endpoint = req.body.signature ? "/sendSimInvoice" : "/sendInvoice";
+    const response = await bratnetApi.post(endpoint, payload);
     const apiResponse = response.data;
 
     // 1. Πιάνουμε τα λάθη του Παρόχου (όπως το 601) και γυρνάμε HTTP 400

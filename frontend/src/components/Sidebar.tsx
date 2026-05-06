@@ -13,8 +13,8 @@ const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/company', icon: Building2, label: 'Στοιχεία Επιχείρησης' },
   { to: '/customers', icon: Users, label: 'Πελατολόγιο' },
-  { to: '/new-invoice', icon: FilePlus, label: 'Νέο Τιμολόγιο' },
-  { to: '/retail', icon: Receipt, label: 'Απόδειξη Λιανικής' },
+  { to: '/new-customer', icon: Users, label: 'Νέος Πελάτης' },
+  { to: '/checkout', icon: Receipt, label: 'Ταμείο (POS)' },
   { to: '/history', icon: FileText, label: 'Ιστορικό' },
 ];
 

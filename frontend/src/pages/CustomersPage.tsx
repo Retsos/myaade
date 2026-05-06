@@ -4,35 +4,19 @@ import { getCustomers, addCustomer, deleteCustomer } from '../api';
 import type { Customer } from '../types';
 import { PageLoader } from '../components/Spinner';
 import Toast from '../components/Toast';
+import { useNavigate } from 'react-router-dom';
 
 export default function CustomersPage() {
+  const navigate = useNavigate();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-  const [form, setForm] = useState({ display_name: '', vat_number: '', country: 'GR', city: '', postal_code: '', street: '', email: '', phone: '', doy_name: '', activity: '' });
 
   const load = () => {
     getCustomers().then(setCustomers).catch(() => {}).finally(() => setLoading(false));
   };
 
   useEffect(() => { load(); }, []);
-
-  const handleAdd = async () => {
-    if (!form.display_name || !form.vat_number) {
-      setToast({ type: 'error', message: 'Συμπληρώστε Επωνυμία και ΑΦΜ.' });
-      return;
-    }
-    try {
-      await addCustomer(form);
-      setShowModal(false);
-      setForm({ display_name: '', vat_number: '', country: 'GR', city: '', postal_code: '', street: '', email: '', phone: '', doy_name: '', activity: '' });
-      setToast({ type: 'success', message: 'Ο πελάτης προστέθηκε επιτυχώς.' });
-      load();
-    } catch (err: unknown) {
-      setToast({ type: 'error', message: (err as Error).message });
-    }
-  };
 
   const handleDelete = async (id: number) => {
     if (!confirm('Διαγραφή πελάτη;')) return;
@@ -55,7 +39,7 @@ export default function CustomersPage() {
           <h1 className="text-2xl font-semibold text-slate-100">Πελατολόγιο</h1>
           <p className="text-sm text-slate-500 mt-1">{customers.length} πελάτες καταχωρημένοι</p>
         </div>
-        <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-4 py-2.5 bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium rounded-lg transition-colors">
+        <button onClick={() => navigate('/new-customer')} className="flex items-center gap-2 px-4 py-2.5 bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium rounded-lg transition-colors">
           <Plus className="w-4 h-4" /> Νέος Πελάτης
         </button>
       </div>
@@ -95,48 +79,6 @@ export default function CustomersPage() {
           </table>
         </div>
       </div>
-
-      {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-850 border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
-              <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-brand-400" />
-                <h3 className="text-sm font-semibold text-slate-200">Νέος Πελάτης</h3>
-              </div>
-              <button onClick={() => setShowModal(false)} className="text-slate-500 hover:text-slate-300"><X className="w-5 h-5" /></button>
-            </div>
-            <div className="p-6 grid grid-cols-2 gap-4">
-              {[
-                { key: 'display_name', label: 'Επωνυμία *', span: 2 },
-                { key: 'vat_number', label: 'ΑΦΜ *' },
-                { key: 'country', label: 'Χώρα' },
-                { key: 'city', label: 'Πόλη' },
-                { key: 'postal_code', label: 'Τ.Κ.' },
-                { key: 'street', label: 'Οδός', span: 2 },
-                { key: 'email', label: 'Email' },
-                { key: 'phone', label: 'Τηλέφωνο' },
-                { key: 'doy_name', label: 'ΔΟΥ' },
-                { key: 'activity', label: 'Δραστηριότητα' },
-              ].map(({ key, label, span }) => (
-                <div key={key} className={span === 2 ? 'col-span-2' : ''}>
-                  <label className="block text-[11px] uppercase tracking-wider text-slate-500 font-medium mb-1.5">{label}</label>
-                  <input
-                    value={form[key as keyof typeof form]}
-                    onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/30 transition-colors"
-                  />
-                </div>
-              ))}
-            </div>
-            <div className="px-6 py-4 border-t border-slate-800 flex justify-end gap-3">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-slate-400 hover:text-slate-200 transition-colors">Ακύρωση</button>
-              <button onClick={handleAdd} className="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium rounded-lg transition-colors">Αποθήκευση</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

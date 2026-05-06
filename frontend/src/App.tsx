@@ -3,9 +3,9 @@ import Layout from './components/Layout';
 import DashboardPage from './pages/DashboardPage';
 import CustomersPage from './pages/CustomersPage';
 import CompanyPage from './pages/CompanyPage';
-import NewInvoicePage from './pages/NewInvoicePage';
 import HistoryPage from './pages/HistoryPage';
-import NewRetailPage from './pages/NewRetailPage';
+import NewCustomerPage from './pages/NewCustomerPage';
+import UnifiedCheckoutPage from './pages/CheckoutPage';
 
 export default function App() {
   return (
@@ -14,9 +14,9 @@ export default function App() {
         <Route path="/" element={<DashboardPage />} />
         <Route path="/customers" element={<CustomersPage />} />
         <Route path="/company" element={<CompanyPage />} />
-        <Route path="/new-invoice" element={<NewInvoicePage />} />
+        <Route path="/new-customer" element={<NewCustomerPage />} />
+        <Route path="/checkout" element={<UnifiedCheckoutPage />} />
         <Route path="/history" element={<HistoryPage />} />
-        <Route path="/retail" element={<NewRetailPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
