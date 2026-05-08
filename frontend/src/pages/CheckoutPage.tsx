@@ -144,7 +144,7 @@ export default function UnifiedCheckoutPage() {
           transaction_id: signResult.raw?.response?.posTransactionId,
         };
 
-        result = await sendInvoice(invoicePayload);
+        result = await sendSimInvoice(invoicePayload);
 
         setToast({
           type: "success",

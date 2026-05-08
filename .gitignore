@@ -45,3 +45,6 @@ desktop.ini
 
 # Misc local files
 *.local
+
+# Claude Code worktrees / local agent state
+.claude/

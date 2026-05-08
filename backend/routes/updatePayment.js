@@ -33,8 +33,8 @@ router.post("/:id/pay", async (req, res) => {
     const signPayload = {
       uid: invoice.uid,
       payAmount: payAmountFloat,
-      nspCode: "01", 
-      terminalId: "54888913"
+      nspCode: "01",
+      tidNsp: "54888913"
     };
     
     const signRes = await bratnetApi.post('/createSign', signPayload);

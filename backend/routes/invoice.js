@@ -110,13 +110,13 @@ router.post("/sendInvoice", async (req, res) => {
   const invoiceSeries = series || typeConfig.defaultSeries;
   const paymentType = payment_type || typeConfig.defaultPaymentType;
 
-  // --- 7. Payload ---
+  // --- 7. Payload (NON-POS) ---
   const payload = {
     invoice: [
       {
         B2G: null,
         ublFields: null,
-        isUnsigned: req.body.signature ? true : typeConfig.isUnsigned,
+        isUnsigned: typeConfig.isUnsigned,
 
         issuer: {
           vatNumber: company.vat_number,
@@ -159,7 +159,6 @@ router.post("/sendInvoice", async (req, res) => {
           salerPhone: company.phone,
           salerWebsite: company.website,
           salerGemh: company.gemh ? String(company.gemh) : "000000000000",
-          // Η Bratnet θέλει τα DoyCode σαν Integer (Αριθμούς), όχι String.
           salerDoyCode: company.doy_code
             ? parseInt(company.doy_code, 10)
             : null,
@@ -178,7 +177,6 @@ router.post("/sendInvoice", async (req, res) => {
           customerEmail: customer?.email || null,
           customerPhone: customer?.phone || null,
           customerActivity: customer?.activity || null,
-          // Και ο πελάτης θέλει Integer για το DoyCode
           customerDoyCode: customer?.doy_code
             ? parseInt(customer.doy_code, 10)
             : null,
@@ -189,11 +187,13 @@ router.post("/sendInvoice", async (req, res) => {
           altCustAddress: null,
 
           invoiceTypeName: req.body.invoice_type_name || typeConfig.label,
-          paymentMethodName: req.body.payment_method_name || (req.body.signature ? "Κάρτα (POS)" : "Επί Πιστώσει"),
-          nspCode: req.body.signature ? "01" : null,
-          signature: req.body.signature || null,
-          tipAmount: req.body.signature ? 0 : null,
-          transactionId: req.body.transaction_id || (req.body.signature ? "POS-TRANS-" + Math.floor(Math.random() * 1000000) : null),
+          paymentMethodName:
+            req.body.payment_method_name ||
+            (paymentType === 3 ? "Μετρητά" : "Επί Πιστώσει"),
+          nspCode: null,
+          signature: null,
+          tipAmount: null,
+          transactionId: null,
           vatExemptionCategoryName: null,
           vehicleNumber: null,
           movePurpose: null,
@@ -282,7 +282,7 @@ router.post("/sendInvoice", async (req, res) => {
               amount: totalGrossValue,
               tid: null,
               tipAmount: null,
-              transactionId: req.body.transaction_id || (req.body.signature ? "POS-TRANS-" + Math.floor(Math.random() * 1000000) : null),
+              transactionId: null,
               providersSignature: null,
               ecrToken: null,
               paymentMethodInfo: null,
@@ -290,7 +290,7 @@ router.post("/sendInvoice", async (req, res) => {
           ],
         },
 
-        tidNsp: req.body.signature ? "54888913" : null,
+        tidNsp: null,
         transmissionFailure: null,
         packingsDeclarations: null,
         taxesTotals: null,
@@ -303,12 +303,9 @@ router.post("/sendInvoice", async (req, res) => {
 
   // --- 8. Αποστολή ---
   try {
-    //αν έχω signature στέλνω simInvoice αλλιώς κανονικό
-    const endpoint = req.body.signature ? "/sendSimInvoice" : "/sendInvoice";
-    const response = await bratnetApi.post(endpoint, payload);
+    const response = await bratnetApi.post("/sendInvoice", payload);
     const apiResponse = response.data;
 
-    // 1. Πιάνουμε τα λάθη του Παρόχου (όπως το 601) και γυρνάμε HTTP 400
     if (apiResponse?.response?.paroxosError) {
       const err = apiResponse.response.paroxosError;
       return res.status(400).json({
@@ -320,7 +317,6 @@ router.post("/sendInvoice", async (req, res) => {
       });
     }
 
-    // 2. Πιάνουμε τα λάθη της ΑΑΔΕ (αν το JSON έχει λογικά λάθη)
     if (
       apiResponse?.response?.errors &&
       apiResponse.response.errors.length > 0
@@ -334,7 +330,6 @@ router.post("/sendInvoice", async (req, res) => {
       });
     }
 
-    // 3. Απόλυτη επιτυχία
     const result = apiResponse?.response?.responses?.[0];
     return res.status(200).json({
       success: true,
