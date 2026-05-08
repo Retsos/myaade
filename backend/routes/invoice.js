@@ -331,6 +331,19 @@ router.post("/sendInvoice", async (req, res) => {
     }
 
     const result = apiResponse?.response?.responses?.[0];
+
+    // Increment series counter on success
+    try {
+      const usedAaInt = parseInt(aa, 10);
+      if (!isNaN(usedAaInt)) {
+        db.prepare(
+          "UPDATE series SET next_aa = ? WHERE name = ? AND invoice_type = ?"
+        ).run(usedAaInt + 1, invoiceSeries, invoice_type);
+      }
+    } catch (e) {
+      console.error("Failed to increment series counter:", e.message);
+    }
+
     return res.status(200).json({
       success: true,
       invoice_mark: result?.invoiceMark,

@@ -1,5 +1,5 @@
-import React from "react";
 import { Banknote, CreditCard, Clock } from "lucide-react";
+import Button from "../ui/Button";
 
 interface CheckoutSummaryProps {
   numericNetValue: number;
@@ -23,10 +23,11 @@ export default function CheckoutSummary({
   handleCheckout,
 }: CheckoutSummaryProps) {
   const isInvoice = documentType === "invoice";
-  const disabledCheckout = loading || numericNetValue <= 0 || (isInvoice && !customerId);
+  const disabledCheckout =
+    loading || numericNetValue <= 0 || (isInvoice && !customerId);
 
   return (
-    <div className="bg-slate-850 border border-slate-800 rounded-2xl p-6 shadow-sm sticky top-6">
+    <div className="bg-slate-850 border border-slate-800 rounded-xl p-6 shadow-sm sticky top-6">
       <h2 className="text-sm font-semibold text-slate-200 mb-6 pb-4 border-b border-slate-800">
         Σύνοψη
       </h2>
@@ -54,60 +55,64 @@ export default function CheckoutSummary({
         </div>
       </div>
 
-      {/* Payment Actions */}
       <div className="space-y-3">
         {isInvoice ? (
-          // 3 Buttons for B2B
           <div className="grid grid-cols-2 gap-3">
-            <button
+            <Button
+              variant="secondary"
+              size="lg"
               onClick={() => handleCheckout("CASH")}
               disabled={disabledCheckout}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-sm font-medium rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
+              iconLeft={<Banknote className="w-4 h-4 text-emerald-400" />}
             >
-              <Banknote className="w-4 h-4 text-emerald-400 group-hover:scale-110 transition-transform" />
               Μετρητά
-            </button>
-
-            <button
+            </Button>
+            <Button
+              variant="secondary"
+              size="lg"
               onClick={() => handleCheckout("PENDING")}
               disabled={disabledCheckout}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-sm font-medium rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
+              iconLeft={<Clock className="w-4 h-4 text-amber-400" />}
             >
-              <Clock className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
               Εκκρεμές
-            </button>
-
+            </Button>
             <div className="col-span-2">
-              <button
+              <Button
+                size="lg"
+                fullWidth
                 onClick={() => handleCheckout("POS")}
                 disabled={disabledCheckout}
-                className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-brand-600 hover:bg-brand-500 border border-brand-500 text-white font-medium rounded-xl transition-all shadow-lg shadow-brand-500/20 disabled:opacity-50 disabled:cursor-not-allowed group"
+                loading={loading}
+                iconLeft={!loading && <CreditCard className="w-5 h-5" />}
+                className="shadow-lg shadow-brand-500/20"
               >
-                <CreditCard className="w-5 h-5 group-hover:scale-110 transition-transform" />
                 {loading ? "Επεξεργασία..." : "Πληρωμή POS"}
-              </button>
+              </Button>
             </div>
           </div>
         ) : (
-          // 2 Buttons for B2C Retail
           <div className="grid grid-cols-1 gap-3">
-            <button
+            <Button
+              variant="secondary"
+              size="lg"
+              fullWidth
               onClick={() => handleCheckout("CASH")}
               disabled={disabledCheckout}
-              className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-medium rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
+              iconLeft={<Banknote className="w-5 h-5 text-emerald-400" />}
             >
-              <Banknote className="w-5 h-5 text-emerald-400 group-hover:scale-110 transition-transform" />
               Μετρητά
-            </button>
-
-            <button
+            </Button>
+            <Button
+              size="lg"
+              fullWidth
               onClick={() => handleCheckout("POS")}
               disabled={disabledCheckout}
-              className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-brand-600 hover:bg-brand-500 border border-brand-500 text-white font-medium rounded-xl transition-all shadow-lg shadow-brand-500/20 disabled:opacity-50 disabled:cursor-not-allowed group"
+              loading={loading}
+              iconLeft={!loading && <CreditCard className="w-5 h-5" />}
+              className="shadow-lg shadow-brand-500/20"
             >
-              <CreditCard className="w-5 h-5 group-hover:scale-110 transition-transform" />
               {loading ? "Επεξεργασία..." : "Πληρωμή POS"}
-            </button>
+            </Button>
           </div>
         )}
       </div>

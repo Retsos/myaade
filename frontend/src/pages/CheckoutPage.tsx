@@ -5,9 +5,17 @@ import {
   sendInvoice,
   createSimSign,
   sendSimInvoice,
-  getInvoices,
+  getSeries,
   saveInvoiceRecord,
 } from "../api";
+
+interface SeriesOption {
+  id: number;
+  name: string;
+  next_aa: number;
+  invoice_type: string;
+  description?: string;
+}
 import type { Customer } from "../types";
 import Toast from "../components/Toast";
 
@@ -15,6 +23,9 @@ import DocumentTypeSelector from "../components/checkout/DocumentTypeSelector";
 import CustomerSelector from "../components/checkout/CustomerSelector";
 import TransactionDetails from "../components/checkout/TransactionDetails";
 import CheckoutSummary from "../components/checkout/CheckoutSummary";
+
+const B2B_TYPES = ["1.1", "2.1", "2.4", "5.1"];
+const RETAIL_TYPES = ["11.1", "11.2"];
 
 export default function UnifiedCheckoutPage() {
   // State Management
@@ -35,8 +46,19 @@ export default function UnifiedCheckoutPage() {
   const [issueDate, setIssueDate] = useState(
     new Date().toISOString().split("T")[0],
   );
-  const [series, setSeries] = useState("Α");
+  const [series, setSeries] = useState("");
+  const [allSeries, setAllSeries] = useState<SeriesOption[]>([]);
   const [aa, setAa] = useState("1");
+
+  const allowedTypes =
+    documentType === "invoice" ? B2B_TYPES : RETAIL_TYPES;
+  const availableSeries = allSeries.filter((s) =>
+    allowedTypes.includes(s.invoice_type),
+  );
+  const selectedSeries = availableSeries.find((s) => s.name === series);
+  const actualInvoiceType =
+    selectedSeries?.invoice_type ||
+    (documentType === "invoice" ? "2.1" : "11.1");
   const [description, setDescription] = useState("Πώληση Εμπορευμάτων");
 
   // Derived Values
@@ -54,23 +76,31 @@ export default function UnifiedCheckoutPage() {
       });
   }, []);
 
+  // Φόρτωση όλων των σειρών μία φορά
   useEffect(() => {
-    getInvoices()
+    getSeries()
       .then((res) => {
-        if (res.success && res.invoices) {
-          const type = documentType === "invoice" ? "2.1" : "11.1";
-          const filtered = res.invoices.filter(
-            (i: any) => i.series === series && i.invoice_type === type,
-          );
-          const maxAa = filtered.reduce((max: number, inv: any) => {
-            const currentAa = parseInt(inv.aa, 10) || 0;
-            return currentAa > max ? currentAa : max;
-          }, 0);
-          setAa((maxAa + 1).toString());
-        }
+        if (res.success && res.series) setAllSeries(res.series);
       })
-      .catch((err) => console.error("Failed to fetch AA", err));
-  }, [documentType, series]);
+      .catch((err) => console.error("Failed to fetch series", err));
+  }, []);
+
+  // Όταν αλλάζει ο τύπος παραστατικού ή φορτωθούν οι σειρές, διάλεξε σωστή σειρά
+  useEffect(() => {
+    if (availableSeries.length === 0) return;
+    if (!availableSeries.find((s) => s.name === series)) {
+      setSeries(availableSeries[0].name);
+      setAa(String(availableSeries[0].next_aa));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [documentType, allSeries]);
+
+  // Όταν αλλάζει η σειρά, γέμισε το αα από το next_aa της σειράς
+  useEffect(() => {
+    const found = availableSeries.find((s) => s.name === series);
+    if (found) setAa(String(found.next_aa));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [series, allSeries]);
 
   const getVatCategory = (rate: number) => {
     if (rate === 24) return 1;
@@ -100,10 +130,9 @@ export default function UnifiedCheckoutPage() {
     setLoading(true);
     try {
       const isInvoice = documentType === "invoice";
-      const actualInvoiceType = isInvoice ? "2.1" : "11.1";
-      const invoiceTypeName = isInvoice
-        ? "Τιμολόγιο Πώλησης"
-        : "Απόδειξη Λιανικής";
+      const invoiceTypeName =
+        selectedSeries?.description ||
+        (isInvoice ? "Τιμολόγιο Πώλησης" : "Απόδειξη Λιανικής");
 
       const items = [
         {
@@ -201,7 +230,19 @@ export default function UnifiedCheckoutPage() {
       // Reset form on success
       setNetValue("");
       if (isInvoice) setCustomerId(null);
-      setAa((parseInt(aa, 10) + 1).toString());
+
+      // Refresh all series counters from DB
+      try {
+        const res = await getSeries();
+        if (res.success && res.series) {
+          setAllSeries(res.series);
+          const found = res.series.find((s: SeriesOption) => s.name === series);
+          if (found) setAa(String(found.next_aa));
+        }
+      } catch (e) {
+        console.error("Failed to refresh series after success", e);
+        setAa((parseInt(aa, 10) + 1).toString());
+      }
     } catch (err: any) {
       console.error("Checkout failed:", err);
       setToast({
@@ -254,8 +295,7 @@ export default function UnifiedCheckoutPage() {
             setIssueDate={setIssueDate}
             series={series}
             setSeries={setSeries}
-            aa={aa}
-            setAa={setAa}
+            availableSeries={availableSeries}
             description={description}
             setDescription={setDescription}
             netValue={netValue}

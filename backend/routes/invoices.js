@@ -5,10 +5,78 @@ const bratnetApi = require("../config");
 
 router.get("/", (req, res) => {
   try {
-    const invoices = db
-      .prepare("SELECT * FROM invoices ORDER BY issue_date DESC, id DESC")
-      .all();
-    return res.status(200).json({ success: true, invoices });
+    const { vat, from, to, mark } = req.query;
+    const limitRaw = parseInt(req.query.limit, 10);
+    const noLimit = limitRaw === 0;
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = noLimit ? 0 : Math.min(200, Math.max(1, limitRaw || 20));
+    const offset = noLimit ? 0 : (page - 1) * limit;
+
+    const where = [];
+    const params = [];
+
+    if (vat) {
+      where.push("customer_vat LIKE ?");
+      params.push(`%${vat}%`);
+    }
+    if (mark) {
+      where.push("mark LIKE ?");
+      params.push(`%${mark}%`);
+    }
+    if (from) {
+      where.push("issue_date >= ?");
+      params.push(from);
+    }
+    if (to) {
+      where.push("issue_date <= ?");
+      params.push(to);
+    }
+
+    const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
+
+    const totalRow = db
+      .prepare(`SELECT COUNT(*) AS cnt FROM invoices ${whereSql}`)
+      .get(...params);
+    const total = totalRow?.cnt || 0;
+
+    const sumRow = db
+      .prepare(
+        `SELECT
+           COALESCE(SUM(total_net_value),  0) AS net,
+           COALESCE(SUM(total_vat_amount), 0) AS vat,
+           COALESCE(SUM(total_gross_value),0) AS gross
+         FROM invoices ${whereSql}`,
+      )
+      .get(...params);
+
+    const invoices = noLimit
+      ? db
+          .prepare(
+            `SELECT * FROM invoices ${whereSql}
+             ORDER BY issue_date DESC, id DESC`,
+          )
+          .all(...params)
+      : db
+          .prepare(
+            `SELECT * FROM invoices ${whereSql}
+             ORDER BY issue_date DESC, id DESC
+             LIMIT ? OFFSET ?`,
+          )
+          .all(...params, limit, offset);
+
+    return res.status(200).json({
+      success: true,
+      invoices,
+      total,
+      totals: {
+        net: sumRow?.net || 0,
+        vat: sumRow?.vat || 0,
+        gross: sumRow?.gross || 0,
+      },
+      page: noLimit ? 1 : page,
+      limit: noLimit ? total : limit,
+      totalPages: noLimit ? 1 : Math.max(1, Math.ceil(total / limit)),
+    });
   } catch (err) {
     console.error("Σφάλμα ανάγνωσης τεφτεριού:", err);
     return res

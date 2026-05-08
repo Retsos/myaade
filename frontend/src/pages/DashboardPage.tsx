@@ -3,7 +3,7 @@ import { FileText, Users, TrendingUp, Receipt, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { getCustomers, getInvoices, getCompany } from "../api";
 import type { Customer, InvoiceRecord, Company } from "../types";
-import { PageLoader } from "../components/Spinner";
+import { Skeleton, SkeletonStatCard } from "../components/ui/Skeleton";
 
 interface StatCardProps {
   icon: React.ElementType;
@@ -48,7 +48,7 @@ export default function DashboardPage() {
     Promise.all([
       getCompany().catch(() => null),
       getCustomers().catch(() => []),
-      getInvoices().catch(() => []),
+      getInvoices({ limit: 0 }).catch(() => []),
     ]).then(([comp, custs, invs]) => {
       setCompany(comp);
       setCustomers(custs);
@@ -64,8 +64,6 @@ export default function DashboardPage() {
       setLoading(false);
     });
   }, []);
-
-  if (loading) return <PageLoader />;
 
   const totalRevenue = invoices.reduce(
     (sum, inv) => sum + (inv.total_gross_value || 0),
@@ -86,34 +84,45 @@ export default function DashboardPage() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard
-          icon={FileText}
-          label="Παραστατικά"
-          value={invoices.length}
-          accent="text-brand-400"
-          bgAccent="bg-brand-500/15"
-        />
-        <StatCard
-          icon={Users}
-          label="Πελάτες"
-          value={customers.length}
-          accent="text-emerald-400"
-          bgAccent="bg-emerald-500/15"
-        />
-        <StatCard
-          icon={TrendingUp}
-          label="Σύνολο Εσόδων"
-          value={`€${totalRevenue.toLocaleString("el-GR", { minimumFractionDigits: 2 })}`}
-          accent="text-amber-400"
-          bgAccent="bg-amber-500/15"
-        />
-        <StatCard
-          icon={Receipt}
-          label="Τελευταίο MARK"
-          value={invoices.length > 0 ? invoices[0].mark || "—" : "—"}
-          accent="text-rose-400"
-          bgAccent="bg-rose-500/15"
-        />
+        {loading ? (
+          <>
+            <SkeletonStatCard />
+            <SkeletonStatCard />
+            <SkeletonStatCard />
+            <SkeletonStatCard />
+          </>
+        ) : (
+          <>
+            <StatCard
+              icon={FileText}
+              label="Παραστατικά"
+              value={invoices.length}
+              accent="text-brand-400"
+              bgAccent="bg-brand-500/15"
+            />
+            <StatCard
+              icon={Users}
+              label="Πελάτες"
+              value={customers.length}
+              accent="text-emerald-400"
+              bgAccent="bg-emerald-500/15"
+            />
+            <StatCard
+              icon={TrendingUp}
+              label="Σύνολο Εσόδων"
+              value={`€${totalRevenue.toLocaleString("el-GR", { minimumFractionDigits: 2 })}`}
+              accent="text-amber-400"
+              bgAccent="bg-amber-500/15"
+            />
+            <StatCard
+              icon={Receipt}
+              label="Τελευταίο MARK"
+              value={invoices.length > 0 ? invoices[0].mark || "—" : "—"}
+              accent="text-rose-400"
+              bgAccent="bg-rose-500/15"
+            />
+          </>
+        )}
       </div>
 
       {/* Quick Actions */}
@@ -132,7 +141,23 @@ export default function DashboardPage() {
             </button>
           </div>
           <div className="divide-y divide-slate-800">
-            {recentInvoices.length === 0 ? (
+            {loading ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="px-5 py-3 flex items-center justify-between gap-3"
+                >
+                  <div className="space-y-2 flex-1">
+                    <Skeleton className="h-3 w-32" />
+                    <Skeleton className="h-2.5 w-20" />
+                  </div>
+                  <div className="space-y-2 text-right">
+                    <Skeleton className="h-3 w-16" />
+                    <Skeleton className="h-2.5 w-24" />
+                  </div>
+                </div>
+              ))
+            ) : recentInvoices.length === 0 ? (
               <div className="px-5 py-8 text-center">
                 <p className="text-sm text-slate-500">
                   Δεν υπάρχουν παραστατικά ακόμα
@@ -175,14 +200,14 @@ export default function DashboardPage() {
           </div>
           <div className="p-5 space-y-3">
             <button
-              onClick={() => navigate("/new-invoice")}
+              onClick={() => navigate("/checkout")}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-brand-500/10 border border-brand-500/20 text-brand-300 hover:bg-brand-500/20 transition-colors text-left"
             >
               <FileText className="w-5 h-5" />
               <div>
-                <p className="text-sm font-medium">Νέο Τιμολόγιο</p>
+                <p className="text-sm font-medium">Νέο Παραστατικό</p>
                 <p className="text-[11px] text-slate-500">
-                  Έκδοση νέου παραστατικού
+                  Έκδοση τιμολογίου ή απόδειξης
                 </p>
               </div>
             </button>

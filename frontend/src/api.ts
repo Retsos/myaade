@@ -52,8 +52,17 @@ export async function sendSimInvoice(payload: Record<string, unknown>) {
   if (!data.success) throw data;
   return data;
 }
-export async function getInvoices() {
-  const { data } = await api.get('/invoices');
+export interface GetInvoicesParams {
+  vat?: string;
+  mark?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  limit?: number;
+}
+
+export async function getInvoices(params: GetInvoicesParams = {}) {
+  const { data } = await api.get('/invoices', { params });
   return data;
 }
 
@@ -77,6 +86,18 @@ export async function getCredits() {
 export async function payInvoicePOS(id: number, pay_amount: number) {
   const { data } = await api.post(`/invoices/${id}/pay`, { pay_amount });
   if (!data.success) throw data;
+  return data;
+}
+
+export async function getSeries(invoice_type?: string) {
+  const { data } = await api.get('/series', {
+    params: invoice_type ? { invoice_type } : {},
+  });
+  return data;
+}
+
+export async function updateSeriesNextAa(id: number, next_aa: number) {
+  const { data } = await api.put(`/series/${id}`, { next_aa });
   return data;
 }
 

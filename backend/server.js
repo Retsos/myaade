@@ -17,6 +17,7 @@ const updatePaymentRoute = require("./routes/updatePayment");
 const createSignRoute = require("./routes/createSign");
 const createSimSignRoute = require("./routes/createSimSign");
 const simInvoiceRoute = require("./routes/SimInvoice");
+const seriesRoute = require("./routes/series");
 
 app.use("/api/credits", creditsRoute);
 app.use("/api", invoiceRoute);
@@ -27,6 +28,7 @@ app.use("/api/invoices", updatePaymentRoute);
 app.use("/api", createSignRoute);
 app.use("/api", createSimSignRoute);
 app.use("/api", simInvoiceRoute);
+app.use("/api/series", seriesRoute);
 
 app.listen(PORT, () => {
   console.log(`[SERVER] Ο διακομιστής τρέχει στη θύρα ${PORT}.`);

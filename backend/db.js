@@ -3,7 +3,7 @@ const path = require("path");
 
 const dbPath = path.join(__dirname, "database.db");
 
-const db = new Database(dbPath, { verbose: console.log });
+const db = new Database(dbPath);
 
 db.pragma("foreign_keys = ON");
 
@@ -59,6 +59,46 @@ try {
   db.prepare(`ALTER TABLE invoices ADD COLUMN payment_method TEXT DEFAULT 'NONE'`).run();
 } catch (e) {
   // Column already exists
+}
+
+// Αν υπάρχει παλιό series table με διαφορετικό schema, drop & recreate
+const existingSeriesCols = db.prepare("PRAGMA table_info(series)").all();
+if (existingSeriesCols.length > 0) {
+  const hasNextAa = existingSeriesCols.some((c) => c.name === "next_aa");
+  const hasInvoiceType = existingSeriesCols.some((c) => c.name === "invoice_type");
+  if (!hasNextAa || !hasInvoiceType) {
+    db.prepare("DROP TABLE series").run();
+  }
+}
+
+db.prepare(
+  `
+  CREATE TABLE IF NOT EXISTS series (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    invoice_type TEXT NOT NULL,
+    next_aa INTEGER NOT NULL DEFAULT 1,
+    description TEXT,
+    UNIQUE(name, invoice_type)
+  )
+`
+).run();
+
+const SEED_SERIES = [
+  { name: "ΤΠ",    invoice_type: "1.1",  description: "Τιμολόγιο Πώλησης" },
+  { name: "ΤΔΑ",   invoice_type: "1.1",  description: "Τιμολόγιο - Δελτίο Αποστολής" },
+  { name: "ΤΠΥ",   invoice_type: "2.1",  description: "Τιμολόγιο Παροχής Υπηρεσιών" },
+  { name: "ΤΠΥ-Ε", invoice_type: "2.4",  description: "Ενδοκοινοτικά" },
+  { name: "ΠΤ",    invoice_type: "5.1",  description: "Πιστωτικό Τιμολόγιο" },
+  { name: "ΑΛΠ",   invoice_type: "11.1", description: "Απόδειξη Λιανικής Πώλησης" },
+  { name: "ΑΠΥ",   invoice_type: "11.2", description: "Απόδειξη Παροχής Υπηρεσιών" },
+];
+
+const insertSeries = db.prepare(
+  `INSERT OR IGNORE INTO series (name, invoice_type, next_aa, description) VALUES (?, ?, 1, ?)`
+);
+for (const s of SEED_SERIES) {
+  insertSeries.run(s.name, s.invoice_type, s.description);
 }
 
 module.exports = db;
