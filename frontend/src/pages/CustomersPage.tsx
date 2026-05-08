@@ -1,30 +1,31 @@
 import { useEffect, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
-import { getCustomers, deleteCustomer } from '../api';
-import type { Customer } from '../types';
 import Toast from '../components/Toast';
 import Button from '../components/ui/Button';
 import { SkeletonTableRow } from '../components/ui/Skeleton';
+import { useAppStore } from '../store/useAppStore';
 import { useNavigate } from 'react-router-dom';
 
 export default function CustomersPage() {
   const navigate = useNavigate();
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [loading, setLoading] = useState(true);
+  const customers = useAppStore((s) => s.customers);
+  const customersLoaded = useAppStore((s) => s.customersLoaded);
+  const customersLoading = useAppStore((s) => s.customersLoading);
+  const loadCustomers = useAppStore((s) => s.loadCustomers);
+  const deleteCustomerFromStore = useAppStore((s) => s.deleteCustomer);
+
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const loading = customersLoading || !customersLoaded;
 
-  const load = () => {
-    getCustomers().then(setCustomers).catch(() => {}).finally(() => setLoading(false));
-  };
-
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    loadCustomers().catch(() => {});
+  }, [loadCustomers]);
 
   const handleDelete = async (id: number) => {
     if (!confirm('Διαγραφή πελάτη;')) return;
     try {
-      await deleteCustomer(id);
+      await deleteCustomerFromStore(id);
       setToast({ type: 'success', message: 'Ο πελάτης διαγράφηκε.' });
-      load();
     } catch {
       setToast({ type: 'error', message: 'Αποτυχία διαγραφής.' });
     }

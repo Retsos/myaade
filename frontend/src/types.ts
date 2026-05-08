@@ -68,6 +68,14 @@ export interface InvoiceRecord {
   created_at: string;
 }
 
+export interface SeriesOption {
+  id: number;
+  name: string;
+  next_aa: number;
+  invoice_type: string;
+  description?: string;
+}
+
 export const INVOICE_TYPES = [
   { value: '2.1', label: '2.1 — Τιμολόγιο Παροχής Υπηρεσιών (ΤΠΥ)' },
   { value: '1.1', label: '1.1 — Τιμολόγιο Πώλησης' },

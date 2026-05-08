@@ -19,25 +19,6 @@ export function Skeleton({ className = "", rounded = "md" }: SkeletonProps) {
   );
 }
 
-export function SkeletonText({
-  lines = 1,
-  className = "",
-}: {
-  lines?: number;
-  className?: string;
-}) {
-  return (
-    <div className={`space-y-2 ${className}`}>
-      {Array.from({ length: lines }).map((_, i) => (
-        <Skeleton
-          key={i}
-          className={`h-3 ${i === lines - 1 && lines > 1 ? "w-3/4" : "w-full"}`}
-        />
-      ))}
-    </div>
-  );
-}
-
 export function SkeletonStatCard() {
   return (
     <div className="bg-slate-850 border border-slate-800 rounded-xl p-5 flex items-center gap-4">

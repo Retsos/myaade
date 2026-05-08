@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { FileText, Users, TrendingUp, Receipt, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { getCustomers, getInvoices, getCompany } from "../api";
-import type { Customer, InvoiceRecord, Company } from "../types";
+import { getInvoices } from "../api";
+import type { InvoiceRecord } from "../types";
 import { Skeleton, SkeletonStatCard } from "../components/ui/Skeleton";
+import { useAppStore } from "../store/useAppStore";
 
 interface StatCardProps {
   icon: React.ElementType;
@@ -39,31 +40,32 @@ function StatCard({
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [company, setCompany] = useState<Company | null>(null);
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const company = useAppStore((s) => s.company);
+  const customers = useAppStore((s) => s.customers);
+  const loadCompany = useAppStore((s) => s.loadCompany);
+  const loadCustomers = useAppStore((s) => s.loadCustomers);
+
   const [invoices, setInvoices] = useState<InvoiceRecord[]>([]);
+  const [invoicesLoading, setInvoicesLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([
-      getCompany().catch(() => null),
-      getCustomers().catch(() => []),
-      getInvoices({ limit: 0 }).catch(() => []),
-    ]).then(([comp, custs, invs]) => {
-      setCompany(comp);
-      setCustomers(custs);
-      
-      let safeInvoices = [];
-      if (invs?.success && Array.isArray(invs.invoices)) {
-        safeInvoices = invs.invoices;
-      } else if (Array.isArray(invs)) {
-        safeInvoices = invs;
-      }
-      setInvoices(safeInvoices);
-      
-      setLoading(false);
-    });
-  }, []);
+    loadCompany().catch(() => null);
+    loadCustomers().catch(() => []);
+    getInvoices({ limit: 0 })
+      .then((invs) => {
+        let safeInvoices: InvoiceRecord[] = [];
+        if (invs?.success && Array.isArray(invs.invoices)) {
+          safeInvoices = invs.invoices;
+        } else if (Array.isArray(invs)) {
+          safeInvoices = invs;
+        }
+        setInvoices(safeInvoices);
+      })
+      .catch(() => {})
+      .finally(() => setInvoicesLoading(false));
+  }, [loadCompany, loadCustomers]);
+
+  const loading = invoicesLoading;
 
   const totalRevenue = invoices.reduce(
     (sum, inv) => sum + (inv.total_gross_value || 0),

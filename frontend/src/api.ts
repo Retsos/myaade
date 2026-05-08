@@ -41,17 +41,12 @@ export async function createSimSign(payload: Record<string, unknown>) {
   return data;
 }
 
-export async function createSign(payload: any) {
-  const { data } = await api.post('/createSign', payload);
-  if (!data.success) throw data;
-  return data;
-}
-
 export async function sendSimInvoice(payload: Record<string, unknown>) {
   const { data } = await api.post('/sendSimInvoice', payload);
   if (!data.success) throw data;
   return data;
 }
+
 export interface GetInvoicesParams {
   vat?: string;
   mark?: string;
@@ -72,8 +67,6 @@ export async function saveInvoiceRecord(payload: Record<string, unknown>) {
 }
 
 export async function cancelInvoice(id: number) {
-  // TODO: Keep this UI call, but have the backend wire it to /cancelSign or
-  // /cancelDeliveryNote once those provider endpoints are implemented.
   const { data } = await api.patch(`/invoices/${id}/cancel`);
   return data;
 }

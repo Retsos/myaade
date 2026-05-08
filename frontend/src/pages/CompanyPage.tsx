@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Building2, MapPin, Phone, Mail, Globe, Hash, Landmark, Briefcase } from 'lucide-react';
-import { getCompany } from '../api';
-import type { Company } from '../types';
 import { PageLoader } from '../components/Spinner';
+import { useAppStore } from '../store/useAppStore';
 
 function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string | number | null | undefined }) {
   return (
@@ -17,15 +16,17 @@ function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label:
 }
 
 export default function CompanyPage() {
-  const [company, setCompany] = useState<Company | null>(null);
-  const [loading, setLoading] = useState(true);
+  const company = useAppStore((s) => s.company);
+  const companyLoaded = useAppStore((s) => s.companyLoaded);
+  const companyLoading = useAppStore((s) => s.companyLoading);
+  const loadCompany = useAppStore((s) => s.loadCompany);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    getCompany().then(setCompany).catch((e) => setError(e.message)).finally(() => setLoading(false));
-  }, []);
+    loadCompany().catch((e) => setError(e.message));
+  }, [loadCompany]);
 
-  if (loading) return <PageLoader />;
+  if (companyLoading || !companyLoaded) return <PageLoader />;
   if (error) return (
     <div className="bg-rose-500/10 border border-rose-500/30 rounded-xl p-6 text-center">
       <p className="text-rose-300 text-sm">{error}</p>

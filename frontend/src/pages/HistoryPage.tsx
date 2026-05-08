@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   FileText,
   CheckCircle,
@@ -105,18 +105,31 @@ export default function HistoryPage() {
       .finally(() => setLoading(false));
   };
 
+  // Initial fetch
   useEffect(() => {
     fetchData({ page: 1 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const applyFilters = () => fetchData({ vat, mark, from, to, page: 1 });
+  // Auto-apply filters with debounce
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    const timeout = setTimeout(() => {
+      fetchData({ vat, mark, from, to, page: 1 });
+    }, 300);
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vat, mark, from, to]);
+
   const clearFilters = () => {
     setVat("");
     setMark("");
     setFrom("");
     setTo("");
-    fetchData({ page: 1 });
   };
   const goToPage = (p: number) => {
     if (p < 1 || p > totalPages) return;
@@ -204,9 +217,21 @@ export default function HistoryPage() {
 
       {/* Filters — desktop only */}
       <div className="hidden sm:block bg-slate-850 border border-slate-800 rounded-xl p-4 sm:p-5 mb-4">
-        <div className="flex items-center gap-2 mb-4 text-xs uppercase tracking-wider text-slate-500 font-semibold">
-          <Filter className="w-3.5 h-3.5" />
-          Φίλτρα Αναζήτησης
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-slate-500 font-semibold">
+            <Filter className="w-3.5 h-3.5" />
+            Φίλτρα Αναζήτησης
+          </div>
+          {activeFiltersCount > 0 && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors"
+            >
+              <RotateCcw className="w-3 h-3" />
+              Καθαρισμός ({activeFiltersCount})
+            </button>
+          )}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <Input
@@ -234,22 +259,6 @@ export default function HistoryPage() {
             value={to}
             onChange={(e) => setTo(e.target.value)}
           />
-        </div>
-        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-4 pt-4 border-t border-slate-800">
-          <Button
-            variant="secondary"
-            onClick={clearFilters}
-            iconLeft={<RotateCcw className="w-4 h-4" />}
-          >
-            Καθαρισμός
-          </Button>
-          <Button
-            onClick={applyFilters}
-            iconLeft={<Search className="w-4 h-4" />}
-            className="sm:min-w-[140px]"
-          >
-            Αναζήτηση
-          </Button>
         </div>
       </div>
 
@@ -669,10 +678,7 @@ export default function HistoryPage() {
             <div className="sticky bottom-0 bg-slate-850 flex flex-col gap-2 border-t border-slate-800 px-5 py-4">
               <Button
                 fullWidth
-                onClick={() => {
-                  applyFilters();
-                  setFiltersOpen(false);
-                }}
+                onClick={() => setFiltersOpen(false)}
                 iconLeft={<Search className="w-4 h-4" />}
               >
                 Εφαρμογή

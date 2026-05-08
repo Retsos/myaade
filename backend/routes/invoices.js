@@ -1,7 +1,6 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../db");
-const bratnetApi = require("../config");
 
 router.get("/", (req, res) => {
   try {
@@ -162,9 +161,6 @@ router.patch("/:id/cancel", async (req, res) => {
     if (invoice.status === "cancelled") {
       return res.json(invoice);
     }
-
-    // TODO: Call /cancelSign or /cancelDeliveryNote with invoice.mark or
-    // invoice.uid when the provider cancellation endpoint is implemented.
 
     db.prepare("UPDATE invoices SET status = 'cancelled' WHERE id = ?").run(
       invoice.id,

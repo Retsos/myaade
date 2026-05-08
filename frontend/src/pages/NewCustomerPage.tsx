@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Users, Save, ArrowLeft } from "lucide-react";
-import { addCustomer } from "../api";
 import Toast from "../components/Toast";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
+import { useAppStore } from "../store/useAppStore";
 
 export default function NewCustomerPage() {
   const navigate = useNavigate();
+  const addCustomerToStore = useAppStore((s) => s.addCustomer);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<{
     type: "success" | "error";
@@ -44,7 +45,7 @@ export default function NewCustomerPage() {
 
     setLoading(true);
     try {
-      await addCustomer({ ...form, branch: parseInt(form.branch) || 0 });
+      await addCustomerToStore({ ...form, branch: parseInt(form.branch) || 0 });
       setToast({
         type: "success",
         message: "Ο πελάτης καταχωρήθηκε επιτυχώς!",

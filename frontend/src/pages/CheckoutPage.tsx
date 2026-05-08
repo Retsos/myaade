@@ -1,22 +1,12 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
 import {
-  getCustomers,
   sendInvoice,
   createSimSign,
   sendSimInvoice,
-  getSeries,
   saveInvoiceRecord,
 } from "../api";
-
-interface SeriesOption {
-  id: number;
-  name: string;
-  next_aa: number;
-  invoice_type: string;
-  description?: string;
-}
-import type { Customer } from "../types";
+import type { SeriesOption } from "../types";
+import { useAppStore } from "../store/useAppStore";
 import Toast from "../components/Toast";
 
 import DocumentTypeSelector from "../components/checkout/DocumentTypeSelector";
@@ -28,11 +18,15 @@ const B2B_TYPES = ["1.1", "2.1", "2.4", "5.1"];
 const RETAIL_TYPES = ["11.1", "11.2"];
 
 export default function UnifiedCheckoutPage() {
-  // State Management
+  const customers = useAppStore((s) => s.customers);
+  const loadCustomers = useAppStore((s) => s.loadCustomers);
+  const allSeries = useAppStore((s) => s.series);
+  const loadSeries = useAppStore((s) => s.loadSeries);
+  const refreshSeries = useAppStore((s) => s.refreshSeries);
+
   const [documentType, setDocumentType] = useState<"invoice" | "retail">(
     "retail",
   );
-  const [customers, setCustomers] = useState<Customer[]>([]);
   const [customerId, setCustomerId] = useState<number | null>(null);
 
   const [netValue, setNetValue] = useState<string>("");
@@ -47,7 +41,6 @@ export default function UnifiedCheckoutPage() {
     new Date().toISOString().split("T")[0],
   );
   const [series, setSeries] = useState("");
-  const [allSeries, setAllSeries] = useState<SeriesOption[]>([]);
   const [aa, setAa] = useState("1");
 
   const allowedTypes =
@@ -67,23 +60,12 @@ export default function UnifiedCheckoutPage() {
   const grossValue = numericNetValue + vatAmount;
 
   useEffect(() => {
-    // Load customers for B2B selection
-    getCustomers()
-      .then(setCustomers)
-      .catch((err) => {
-        console.error("Failed to load customers", err);
-        setToast({ type: "error", message: "Αποτυχία φόρτωσης πελατών." });
-      });
-  }, []);
-
-  // Φόρτωση όλων των σειρών μία φορά
-  useEffect(() => {
-    getSeries()
-      .then((res) => {
-        if (res.success && res.series) setAllSeries(res.series);
-      })
-      .catch((err) => console.error("Failed to fetch series", err));
-  }, []);
+    loadCustomers().catch((err) => {
+      console.error("Failed to load customers", err);
+      setToast({ type: "error", message: "Αποτυχία φόρτωσης πελατών." });
+    });
+    loadSeries().catch((err) => console.error("Failed to fetch series", err));
+  }, [loadCustomers, loadSeries]);
 
   // Όταν αλλάζει ο τύπος παραστατικού ή φορτωθούν οι σειρές, διάλεξε σωστή σειρά
   useEffect(() => {
@@ -233,12 +215,9 @@ export default function UnifiedCheckoutPage() {
 
       // Refresh all series counters from DB
       try {
-        const res = await getSeries();
-        if (res.success && res.series) {
-          setAllSeries(res.series);
-          const found = res.series.find((s: SeriesOption) => s.name === series);
-          if (found) setAa(String(found.next_aa));
-        }
+        const fresh = await refreshSeries();
+        const found = fresh.find((s: SeriesOption) => s.name === series);
+        if (found) setAa(String(found.next_aa));
       } catch (e) {
         console.error("Failed to refresh series after success", e);
         setAa((parseInt(aa, 10) + 1).toString());
