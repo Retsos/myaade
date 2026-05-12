@@ -1,3 +1,6 @@
+// Styled <select> with a custom chevron icon. We hide the native arrow
+// (appearance-none) so the dropdown indicator sits at a predictable place
+// across browsers and the visual matches the other Input fields.
 import React, { forwardRef } from "react";
 import { ChevronDown, AlertTriangle } from "lucide-react";
 

@@ -1,3 +1,9 @@
+// Unified checkout page: covers both B2B (invoice) and retail (receipt) flows
+// in a single screen. The actual myDATA endpoint that's hit depends on the
+// chosen payment method, not the document type:
+//   - POS      → createSimSign + sendSimInvoice  (signed)
+//   - CASH     → sendInvoice with paymentType=3
+//   - PENDING  → sendInvoice with paymentType=5  (on-credit, B2B only)
 import { useState, useEffect } from "react";
 import {
   sendInvoice,
@@ -14,6 +20,9 @@ import CustomerSelector from "../components/checkout/CustomerSelector";
 import TransactionDetails from "../components/checkout/TransactionDetails";
 import CheckoutSummary from "../components/checkout/CheckoutSummary";
 
+// Document-type buckets. The UI exposes only two top-level choices
+// ("invoice" vs "retail") but each maps to multiple myDATA invoice types
+// available via the series dropdown.
 const B2B_TYPES = ["1.1", "2.1", "2.4", "5.1"];
 const RETAIL_TYPES = ["11.1", "11.2"];
 
@@ -43,6 +52,10 @@ export default function UnifiedCheckoutPage() {
   const [series, setSeries] = useState("");
   const [aa, setAa] = useState("1");
 
+  // Filter the full series list down to the ones valid for the chosen
+  // document type. The real invoice_type that we send to AADE comes from
+  // the *selected* series — not from documentType — because each B2B/retail
+  // bucket has multiple types (e.g. invoice can be 1.1, 2.1, 2.4, 5.1).
   const allowedTypes =
     documentType === "invoice" ? B2B_TYPES : RETAIL_TYPES;
   const availableSeries = allSeries.filter((s) =>
@@ -67,7 +80,9 @@ export default function UnifiedCheckoutPage() {
     loadSeries().catch((err) => console.error("Failed to fetch series", err));
   }, [loadCustomers, loadSeries]);
 
-  // Όταν αλλάζει ο τύπος παραστατικού ή φορτωθούν οι σειρές, διάλεξε σωστή σειρά
+  // When the document type changes (or series finish loading), make sure
+  // the selected series is one that's actually valid for this bucket.
+  // Picks the first available series and resets AA to that series's counter.
   useEffect(() => {
     if (availableSeries.length === 0) return;
     if (!availableSeries.find((s) => s.name === series)) {
@@ -77,7 +92,7 @@ export default function UnifiedCheckoutPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [documentType, allSeries]);
 
-  // Όταν αλλάζει η σειρά, γέμισε το αα από το next_aa της σειράς
+  // When the user picks a different series, sync AA with that series's next_aa.
   useEffect(() => {
     const found = availableSeries.find((s) => s.name === series);
     if (found) setAa(String(found.next_aa));
@@ -129,6 +144,9 @@ export default function UnifiedCheckoutPage() {
 
       let result;
 
+      // POS path: two-step (createSimSign → sendSimInvoice). Works for both
+      // retail (no counterpart) and B2B (with counterpart) — the backend
+      // decides based on whether customer_id is provided.
       if (paymentMethod === "POS") {
         const simSignPayload = {
           aa: aa,
@@ -162,7 +180,8 @@ export default function UnifiedCheckoutPage() {
           message: `${invoiceTypeName} εκδόθηκε επιτυχώς με πληρωμή POS!`,
         });
       } else {
-        // Normal flow (CASH or PENDING)
+        // Non-POS path: single-step /sendInvoice. paymentType 3 = cash,
+        // 5 = on-credit (PENDING — B2B only since retail is always paid).
         const payload = {
           invoice_type: actualInvoiceType,
           invoice_type_name: invoiceTypeName,

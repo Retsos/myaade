@@ -1,3 +1,6 @@
+// Standardized button used across the app.
+// Variants and sizes are centralized here so visual tweaks are one-place edits.
+// `loading=true` swaps the left icon with a spinner and disables the button.
 import React from "react";
 import { Spinner } from "../Spinner";
 

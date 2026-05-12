@@ -1,3 +1,8 @@
+// Invoice history page.
+// Backend handles filtering, pagination, and period totals (see
+// /api/invoices). The UI here adds: auto-applied filters with debounce,
+// a mobile filter drawer, inline payment validation, and skeleton loaders
+// for the first fetch.
 import { useEffect, useRef, useState } from "react";
 import {
   FileText,
@@ -44,8 +49,12 @@ type InvoiceRecord = {
   payment_method?: string;
 };
 
+// myDATA types that require a counterpart (i.e. proper invoices, not retail
+// receipts). Used to decide which status badge / actions to show per row.
 const B2B_TYPES = ["1.1", "2.1", "2.4", "5.1"];
 
+// Maps a row to its visual status. "Εκκρεμές" only applies to B2B invoices
+// that are still PENDING — retail is always considered paid at issuance.
 function getStatusBadge(inv: InvoiceRecord) {
   const isB2B = B2B_TYPES.includes(inv.invoice_type);
   const isPending = inv.status === "PENDING" && isB2B;
@@ -102,7 +111,10 @@ export default function HistoryPage() {
     message: string;
   } | null>(null);
 
-  // Real-time validation of the POS payment amount. Returns null when valid.
+  // Real-time validation of the POS payment amount. Returns null when valid,
+  // otherwise a human-readable Greek message. The amount input passes this
+  // through the Input component's `error` prop so the row turns red as the
+  // user types — no need to click "Pay" first to see what's wrong.
   const payValidation = (() => {
     if (!invoiceToPay) return null;
     if (payAmount.trim() === "") return "Συμπληρώστε το ποσό χρέωσης.";
@@ -162,7 +174,10 @@ export default function HistoryPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Auto-apply filters with debounce
+  // Auto-apply filters with a 300ms debounce.
+  // Skips the first render (the initial fetch above already handled it),
+  // then on every filter-state change waits 300ms after the last keystroke
+  // before re-fetching. Avoids hammering the backend during typing.
   const isFirstRender = useRef(true);
   useEffect(() => {
     if (isFirstRender.current) {

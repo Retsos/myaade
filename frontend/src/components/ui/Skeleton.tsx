@@ -1,3 +1,6 @@
+// Skeleton placeholders shown while data is loading. Three pre-built variants
+// (StatCard / TableRow / Card) mirror the most common layouts in this app so
+// pages can swap in skeletons without rebuilding them inline.
 interface SkeletonProps {
   className?: string;
   rounded?: "sm" | "md" | "lg" | "xl" | "full";

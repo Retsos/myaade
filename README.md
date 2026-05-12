@@ -8,8 +8,10 @@
 - Έκδοση αποδείξεων λιανικής (11.1, 11.2)
 - Πληρωμή με **POS** (createSimSign + sendSimInvoice)
 - Ετεροχρονισμένη πληρωμή B2B (createSign + updatePayments)
-- Ιστορικό παραστατικών με φίλτρα (ΑΦΜ, MARK, ημερομηνίες) και pagination
+- Auto-retry στο error **603** (AA already used) με αυτόματη ενημέρωση του counter
+- Ιστορικό παραστατικών με φίλτρα (ΑΦΜ, MARK, ημερομηνίες), summary cards και pagination
 - Διαχείριση πελατολογίου & σειρών παραστατικών
+- Mobile-friendly UI (responsive sidebar, filter modal, card view για το ιστορικό)
 
 ---
 
@@ -33,18 +35,27 @@
 
 ```
 epilogiB/
-├── backend/        # Express API server (port 3000)
-│   ├── routes/     # API endpoints
-│   ├── db.js       # SQLite schema & migrations
-│   ├── server.js   # Entry point
-│   └── database.db # SQLite file (δημιουργείται αυτόματα)
-├── frontend/       # React app (port 5173)
+├── backend/                # Express API server (port 3000)
+│   ├── routes/             # API endpoints (per resource)
+│   ├── config.js           # Axios client για Bratnet
+│   ├── db.js               # SQLite schema, migrations, seeds, ISSUER_VAT sync
+│   ├── invoiceTypes.js     # myDATA invoice / payment / VAT catalogs
+│   ├── server.js           # Entry point, route mounting
+│   ├── .env.example        # Template για το .env (δεν περιέχει secrets)
+│   └── database.db         # SQLite file (δημιουργείται αυτόματα)
+├── frontend/               # React app (port 5173)
 │   └── src/
-│       ├── pages/
+│       ├── pages/          # Dashboard, Checkout, History, Customers, Company
 │       ├── components/
-│       ├── store/  # Zustand store
-│       └── api.ts
-└── index.html      # Visual flow documentation
+│       │   ├── ui/         # Reusable: Button, Input, Select, Skeleton
+│       │   ├── checkout/   # Checkout-specific subcomponents
+│       │   ├── Layout.tsx  # Sidebar + main content shell
+│       │   ├── Sidebar.tsx
+│       │   └── Toast.tsx   # Auto-dismissing notification
+│       ├── store/          # Zustand store (customers, series, company cache)
+│       ├── types.ts
+│       └── api.ts          # Axios wrappers γύρω από το backend API
+└── index.html              # Visual flow documentation
 ```
 
 ---
@@ -157,10 +168,14 @@ npm run preview    # δοκιμή του build
 3. Πήγαινε στο **Πελατολόγιο** και πρόσθεσε τους πρώτους πελάτες
 4. Στο **Ταμείο (POS)** μπορείς να εκδώσεις παραστατικά:
    - Επίλεξε _Τιμολόγιο_ (B2B) ή _Λιανική_
-   - Επίλεξε σειρά (ΤΠΥ, ΑΛΠ, κ.λπ.)
+   - Επίλεξε σειρά (ΤΠΥ, ΑΛΠ, κ.λπ.) — ο ΑΑ γεμίζει αυτόματα από τη βάση
    - Συμπλήρωσε ποσά
-   - Διάλεξε τρόπο πληρωμής: Μετρητά / Εκκρεμές / POS
-5. Στο **Ιστορικό** βλέπεις όλα τα εκδομένα παραστατικά, με φίλτρα και σύνολα ανά περίοδο
+   - Διάλεξε τρόπο πληρωμής: Μετρητά / Εκκρεμές (μόνο B2B) / POS
+5. Στο **Ιστορικό** βλέπεις όλα τα εκδομένα παραστατικά:
+   - Summary cards (Καθαρή, ΦΠΑ, Σύνολο) που ενημερώνονται live με τα φίλτρα
+   - Auto-search καθώς πληκτρολογείς (debounced)
+   - "Εκκρεμές" status φαίνεται **μόνο** σε B2B τιμολόγια με payment_method = NONE
+   - POS κουμπί για εξόφληση εκκρεμών B2B
 
 ---
 
@@ -198,6 +213,12 @@ npm run preview    # δοκιμή του build
 
 **Πρόβλημα:** Bratnet API επιστρέφει 401
 → Λάθος credentials στο `.env`.
+
+**Πρόβλημα:** AADE error **603 "Invoice already has been send"**
+→ Σημαίνει ότι ο ΑΑ που δοκίμασες έχει ήδη χρησιμοποιηθεί στη ΑΑΔΕ. Το backend κάνει αυτόματα **έως 5 retries** αυξάνοντας το `next_aa` της σειράς, οπότε στις περισσότερες περιπτώσεις δουλεύει με μία προσπάθεια. Αν αποτύχουν και τα 5 retries (πολύ μεγάλο drift), ρύθμισε χειροκίνητα τη σειρά:
+```sql
+UPDATE series SET next_aa = <νέος_αριθμός> WHERE name = '<ΣΕΙΡΑ>' AND invoice_type = '<ΤΥΠΟΣ>';
+```
 
 ---
 

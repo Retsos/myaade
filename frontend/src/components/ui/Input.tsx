@@ -1,3 +1,7 @@
+// Text input with built-in label, error and hint slots.
+// Pass `error` to render the field in red plus a message underneath;
+// pass `hint` for neutral helper text. `[color-scheme:dark]` makes the
+// native date / time pickers blend with the dark theme.
 import React, { forwardRef } from "react";
 import { AlertTriangle } from "lucide-react";
 
