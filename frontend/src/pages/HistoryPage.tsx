@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { getInvoices, payInvoicePOS } from "../api";
 import { Spinner } from "../components/Spinner";
+import Toast from "../components/Toast";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import {
@@ -94,7 +95,35 @@ export default function HistoryPage() {
   const [payAmount, setPayAmount] = useState("");
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState("");
+  const [payTouched, setPayTouched] = useState(false);
   const [justUpdated, setJustUpdated] = useState(false);
+  const [toast, setToast] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
+
+  // Real-time validation of the POS payment amount. Returns null when valid.
+  const payValidation = (() => {
+    if (!invoiceToPay) return null;
+    if (payAmount.trim() === "") return "Συμπληρώστε το ποσό χρέωσης.";
+    if (!/^\d+(\.\d{1,2})?$/.test(payAmount.trim()))
+      return "Μη έγκυρος αριθμός. Χρησιμοποίησε π.χ. 12.50";
+    const n = parseFloat(payAmount);
+    if (n <= 0) return "Το ποσό πρέπει να είναι μεγαλύτερο από 0.";
+    if (n < invoiceToPay.total_gross_value)
+      return `Το ποσό υπολείπεται. Ελάχιστο: €${invoiceToPay.total_gross_value.toFixed(2)}`;
+    return null;
+  })();
+
+  // Tip = anything paid above the invoice total. Shown as a positive hint.
+  const tipPreview = (() => {
+    if (!invoiceToPay || payValidation) return 0;
+    const n = parseFloat(payAmount);
+    return Math.max(
+      0,
+      parseFloat((n - invoiceToPay.total_gross_value).toFixed(2)),
+    );
+  })();
 
   const fetchData = (params: {
     vat?: string;
@@ -159,14 +188,13 @@ export default function HistoryPage() {
   };
 
   const handlePayment = async () => {
-    if (!invoiceToPay || !payAmount) return;
-    const parsedAmount = parseFloat(payAmount);
-    if (parsedAmount < invoiceToPay.total_gross_value) {
-      setPayError(
-        `Το ποσό υπολείπεται. Ελάχιστο ποσό: €${invoiceToPay.total_gross_value.toFixed(2)}`,
-      );
+    if (!invoiceToPay) return;
+    setPayTouched(true);
+    if (payValidation) {
+      setPayError(payValidation);
       return;
     }
+
     setPayError("");
     setPaying(true);
     try {
@@ -177,11 +205,19 @@ export default function HistoryPage() {
       setInvoices((prev) =>
         prev.map((inv) => (inv.id === invoiceToPay.id ? result.invoice : inv)),
       );
+      const seriesRef = `${invoiceToPay.series}-${invoiceToPay.aa}`;
       setInvoiceToPay(null);
       setPayAmount("");
+      setPayTouched(false);
+      setToast({
+        type: "success",
+        message: `Το παραστατικό ${seriesRef} εξοφλήθηκε επιτυχώς μέσω POS.`,
+      });
     } catch (err: any) {
-      console.error("Αποτυχία πληρωμής:", err);
-      setPayError(err.error || "Αποτυχία επικοινωνίας με το POS.");
+      console.error("Payment failed:", err);
+      setPayError(
+        err.error || err.details || "Αποτυχία επικοινωνίας με το POS.",
+      );
     } finally {
       setPaying(false);
     }
@@ -191,6 +227,13 @@ export default function HistoryPage() {
 
   return (
     <div>
+      {toast && (
+        <Toast
+          type={toast.type}
+          message={toast.message}
+          onClose={() => setToast(null)}
+        />
+      )}
       <div className="mb-6 flex flex-row items-start sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-slate-100 flex items-center gap-2">
@@ -406,6 +449,16 @@ export default function HistoryPage() {
                       </td>
                       <td className="p-4">
                         <div className="flex items-center justify-center gap-2">
+                          {isPendingB2B(inv) && (
+                            <button
+                              type="button"
+                              onClick={() => setInvoiceToPay(inv)}
+                              title="Εξόφληση με POS"
+                              className="inline-flex p-2 text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors"
+                            >
+                              <CreditCard className="w-4 h-4" />
+                            </button>
+                          )}
                           {inv.invoice_url ? (
                             <a
                               href={inv.invoice_url}
@@ -420,16 +473,6 @@ export default function HistoryPage() {
                             <span className="inline-flex p-2 text-slate-700">
                               <ExternalLink className="w-4 h-4" />
                             </span>
-                          )}
-                          {isPendingB2B(inv) && (
-                            <button
-                              type="button"
-                              onClick={() => setInvoiceToPay(inv)}
-                              title="Εξόφληση με POS"
-                              className="inline-flex p-2 text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors"
-                            >
-                              <CreditCard className="w-4 h-4" />
-                            </button>
                           )}
                         </div>
                       </td>
@@ -520,16 +563,6 @@ export default function HistoryPage() {
 
                   {(inv.invoice_url || isPendingB2B(inv)) && (
                     <div className="flex items-center gap-2 pt-3 border-t border-slate-800/60">
-                      {inv.invoice_url && (
-                        <a
-                          href={inv.invoice_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-brand-300 bg-brand-500/10 rounded-lg hover:bg-brand-500/20 transition-colors"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" /> PDF
-                        </a>
-                      )}
                       {isPendingB2B(inv) && (
                         <Button
                           variant="success"
@@ -539,6 +572,16 @@ export default function HistoryPage() {
                         >
                           POS
                         </Button>
+                      )}
+                      {inv.invoice_url && (
+                        <a
+                          href={inv.invoice_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-brand-300 bg-brand-500/10 rounded-lg hover:bg-brand-500/20 transition-colors"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" /> PDF
+                        </a>
                       )}
                     </div>
                   )}
@@ -706,10 +749,19 @@ export default function HistoryPage() {
                 value={payAmount}
                 onChange={(e) => {
                   setPayAmount(e.target.value);
+                  setPayTouched(true);
                   if (payError) setPayError("");
                 }}
-                placeholder="π.χ. 50.00"
-                error={payError || undefined}
+                placeholder={`π.χ. ${invoiceToPay.total_gross_value.toFixed(2)}`}
+                error={
+                  payError ||
+                  (payTouched && payValidation ? payValidation : undefined)
+                }
+                hint={
+                  !payValidation && tipPreview > 0
+                    ? `Συμπεριλαμβάνεται φιλοδώρημα €${tipPreview.toFixed(2)}`
+                    : undefined
+                }
               />
             </div>
             <div className="flex justify-end gap-3 border-t border-slate-800 px-5 py-4">
@@ -719,6 +771,7 @@ export default function HistoryPage() {
                   setInvoiceToPay(null);
                   setPayAmount("");
                   setPayError("");
+                  setPayTouched(false);
                 }}
                 disabled={paying}
               >
@@ -727,7 +780,7 @@ export default function HistoryPage() {
               <Button
                 variant="success"
                 onClick={handlePayment}
-                disabled={!payAmount}
+                disabled={paying || !!payValidation}
                 loading={paying}
                 className="min-w-[140px]"
               >

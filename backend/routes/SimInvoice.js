@@ -271,46 +271,86 @@ router.post("/sendSimInvoice", async (req, res) => {
     ],
   };
 
+  // Auto-retry on error 603 (series+AA already used). Bump local counter and
+  // resubmit up to MAX_RETRIES times so the user doesn't have to re-click.
+  const MAX_RETRIES = 5;
+  const usedSeries = series || typeConfig.defaultSeries;
+  let currentAa = parseInt(aa, 10);
+  let lastError = null;
+
   try {
-    const finalResponse = await bratnetApi.post("/sendSimInvoice", payload);
-    const finalApiData = finalResponse.data;
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      payload.invoice[0].invoiceHeader.aa = String(currentAa);
 
-    if (finalApiData?.response?.paroxosError) {
-      return res.status(400).json({
-        success: false,
-        error_description: finalApiData.response.paroxosError.description,
-        raw: finalApiData,
-      });
-    }
-    if (finalApiData?.response?.errors?.length > 0) {
-      return res.status(400).json({
-        success: false,
-        error_description: finalApiData.response.errors[0].message,
-        raw: finalApiData,
-      });
-    }
+      const finalResponse = await bratnetApi.post("/sendSimInvoice", payload);
+      const finalApiData = finalResponse.data;
 
-    const result = finalApiData?.response?.responses?.[0];
+      if (finalApiData?.response?.paroxosError) {
+        const pErr = finalApiData.response.paroxosError;
 
-    // Increment series counter on success
-    try {
-      const usedAaInt = parseInt(aa, 10);
-      const usedSeries = series || typeConfig.defaultSeries;
-      if (!isNaN(usedAaInt)) {
-        db.prepare(
-          "UPDATE series SET next_aa = ? WHERE name = ? AND invoice_type = ?"
-        ).run(usedAaInt + 1, usedSeries, invoice_type);
+        if (pErr.code === 603) {
+          try {
+            const currentRow = db
+              .prepare(
+                "SELECT next_aa FROM series WHERE name = ? AND invoice_type = ?",
+              )
+              .get(usedSeries, invoice_type);
+            const currentNext = currentRow?.next_aa ?? currentAa + 1;
+            currentAa = Math.max(currentNext, currentAa + 1);
+            db.prepare(
+              "UPDATE series SET next_aa = ? WHERE name = ? AND invoice_type = ?",
+            ).run(currentAa, usedSeries, invoice_type);
+          } catch (e) {
+            console.error("Failed to bump next_aa during retry:", e.message);
+          }
+          lastError = pErr;
+          continue;
+        }
+
+        return res.status(400).json({
+          success: false,
+          error_code: pErr.code,
+          error_description: pErr.description,
+          raw: finalApiData,
+        });
       }
-    } catch (e) {
-      console.error("Failed to increment series counter:", e.message);
+
+      if (finalApiData?.response?.errors?.length > 0) {
+        return res.status(400).json({
+          success: false,
+          error_description: finalApiData.response.errors[0].message,
+          raw: finalApiData,
+        });
+      }
+
+      // Success
+      const result = finalApiData?.response?.responses?.[0];
+      try {
+        db.prepare(
+          "UPDATE series SET next_aa = ? WHERE name = ? AND invoice_type = ?",
+        ).run(currentAa + 1, usedSeries, invoice_type);
+      } catch (e) {
+        console.error("Failed to increment series counter:", e.message);
+      }
+
+      return res.status(200).json({
+        success: true,
+        invoice_mark: result?.invoiceMark,
+        invoice_uid: result?.invoiceUid,
+        invoice_url: result?.invoiceUrl,
+        used_aa: String(currentAa),
+        retries: attempt,
+        raw: finalApiData,
+      });
     }
 
-    return res.status(200).json({
-      success: true,
-      invoice_mark: result?.invoiceMark,
-      invoice_uid: result?.invoiceUid,
-      invoice_url: result?.invoiceUrl,
-      raw: finalApiData,
+    // Exhausted retries
+    return res.status(400).json({
+      success: false,
+      error_code: 603,
+      error_description: `Δοκιμάσαμε ${MAX_RETRIES} συνεχόμενους ΑΑ στη σειρά ${usedSeries} και όλοι ήταν κατειλημμένοι. Πιθανότατα υπάρχει μεγάλο drift — ρύθμισε χειροκίνητα το next_aa.`,
+      last_aa_tried: String(currentAa),
+      raw: lastError,
     });
   } catch (err) {
     console.error("sendSimInvoice Error:", err.response?.data || err.message);

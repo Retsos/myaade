@@ -224,10 +224,24 @@ export default function UnifiedCheckoutPage() {
       }
     } catch (err: any) {
       console.error("Checkout failed:", err);
+
+      // AADE error 603: AA already used. Backend already bumped next_aa server-side —
+      // refresh the local series so the UI picks up the new counter.
+      if (err?.error_code === 603) {
+        try {
+          const fresh = await refreshSeries();
+          const found = fresh.find((s: SeriesOption) => s.name === series);
+          if (found) setAa(String(found.next_aa));
+        } catch {
+          /* non-fatal */
+        }
+      }
+
       setToast({
         type: "error",
         message:
-          err.message ||
+          err?.error_description ||
+          err?.message ||
           "Παρουσιάστηκε σφάλμα κατά την έκδοση του παραστατικού.",
       });
     } finally {

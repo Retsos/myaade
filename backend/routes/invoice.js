@@ -206,6 +206,7 @@ router.post("/sendInvoice", async (req, res) => {
           hotelEndDate: null,
         },
 
+        // NOTE: invoiceHeader.aa is mutated inside the retry loop below.
         invoiceHeader: {
           series: invoiceSeries,
           aa,
@@ -301,56 +302,96 @@ router.post("/sendInvoice", async (req, res) => {
     ],
   };
 
-  // --- 8. Αποστολή ---
+  // --- 8. Submit to Bratnet → AADE with auto-retry on error 603 ---
+  // Error 603 means the series+AA combo is already taken on AADE. We bump
+  // our local counter and retry up to MAX_RETRIES times so the user doesn't
+  // have to keep re-clicking when there's drift.
+  const MAX_RETRIES = 5;
+  let currentAa = parseInt(aa, 10);
+  let lastError = null;
+
   try {
-    const response = await bratnetApi.post("/sendInvoice", payload);
-    const apiResponse = response.data;
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      payload.invoice[0].invoiceHeader.aa = String(currentAa);
 
-    if (apiResponse?.response?.paroxosError) {
-      const err = apiResponse.response.paroxosError;
-      return res.status(400).json({
-        success: false,
-        error_code: err.code,
-        error_description: err.description,
-        invoice_url: err.invoiceUrl || null,
-        raw: apiResponse,
-      });
-    }
+      const response = await bratnetApi.post("/sendInvoice", payload);
+      const apiResponse = response.data;
 
-    if (
-      apiResponse?.response?.errors &&
-      apiResponse.response.errors.length > 0
-    ) {
-      const aadeErr = apiResponse.response.errors[0];
-      return res.status(400).json({
-        success: false,
-        error_code: aadeErr.code,
-        error_description: aadeErr.message,
-        raw: apiResponse,
-      });
-    }
+      if (apiResponse?.response?.paroxosError) {
+        const pErr = apiResponse.response.paroxosError;
 
-    const result = apiResponse?.response?.responses?.[0];
+        if (pErr.code === 603) {
+          // Bump counter and try again on the next iteration.
+          try {
+            const currentRow = db
+              .prepare(
+                "SELECT next_aa FROM series WHERE name = ? AND invoice_type = ?",
+              )
+              .get(invoiceSeries, invoice_type);
+            const currentNext = currentRow?.next_aa ?? currentAa + 1;
+            currentAa = Math.max(currentNext, currentAa + 1);
+            db.prepare(
+              "UPDATE series SET next_aa = ? WHERE name = ? AND invoice_type = ?",
+            ).run(currentAa, invoiceSeries, invoice_type);
+          } catch (e) {
+            console.error("Failed to bump next_aa during retry:", e.message);
+          }
+          lastError = pErr;
+          continue;
+        }
 
-    // Increment series counter on success
-    try {
-      const usedAaInt = parseInt(aa, 10);
-      if (!isNaN(usedAaInt)) {
-        db.prepare(
-          "UPDATE series SET next_aa = ? WHERE name = ? AND invoice_type = ?"
-        ).run(usedAaInt + 1, invoiceSeries, invoice_type);
+        // Any other provider error — surface immediately
+        return res.status(400).json({
+          success: false,
+          error_code: pErr.code,
+          error_description: pErr.description,
+          invoice_url: pErr.invoiceUrl || null,
+          raw: apiResponse,
+        });
       }
-    } catch (e) {
-      console.error("Failed to increment series counter:", e.message);
+
+      if (
+        apiResponse?.response?.errors &&
+        apiResponse.response.errors.length > 0
+      ) {
+        const aadeErr = apiResponse.response.errors[0];
+        return res.status(400).json({
+          success: false,
+          error_code: aadeErr.code,
+          error_description: aadeErr.message,
+          raw: apiResponse,
+        });
+      }
+
+      // Success
+      const result = apiResponse?.response?.responses?.[0];
+      try {
+        db.prepare(
+          "UPDATE series SET next_aa = ? WHERE name = ? AND invoice_type = ?",
+        ).run(currentAa + 1, invoiceSeries, invoice_type);
+      } catch (e) {
+        console.error("Failed to increment series counter:", e.message);
+      }
+
+      return res.status(200).json({
+        success: true,
+        invoice_mark: result?.invoiceMark,
+        invoice_uid: result?.invoiceUid,
+        invoice_url: result?.invoiceUrl,
+        user_request_id: apiResponse.userRequestID,
+        used_aa: String(currentAa),
+        retries: attempt,
+        raw: apiResponse,
+      });
     }
 
-    return res.status(200).json({
-      success: true,
-      invoice_mark: result?.invoiceMark,
-      invoice_uid: result?.invoiceUid,
-      invoice_url: result?.invoiceUrl,
-      user_request_id: apiResponse.userRequestID,
-      raw: apiResponse,
+    // Exhausted retries
+    return res.status(400).json({
+      success: false,
+      error_code: 603,
+      error_description: `Δοκιμάσαμε ${MAX_RETRIES} συνεχόμενους ΑΑ στη σειρά ${invoiceSeries} και όλοι ήταν κατειλημμένοι. Πιθανότατα υπάρχει μεγάλο drift — ρύθμισε χειροκίνητα το next_aa.`,
+      last_aa_tried: String(currentAa),
+      raw: lastError,
     });
   } catch (err) {
     console.error("Bratnet error:", err.response?.data || err.message);
