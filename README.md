@@ -89,21 +89,33 @@ PORT=3000
 
 ### Στοιχεία εκδότη (issuer)
 
-Το πρώτο record στον πίνακα `company` είναι **hardcoded** για την επιχείρηση που εκδίδει τα παραστατικά. Πριν την πρώτη χρήση χρειάζεται να βάλεις τα δικά σου στοιχεία (ΑΦΜ, ΔΟΥ, διεύθυνση κ.λπ.).
+Το πρώτο record στον πίνακα `company` είναι τα στοιχεία της επιχείρησης που εκδίδει τα παραστατικά. Η φόρτωση γίνεται σε δύο βήματα:
 
-Άνοιξε τη βάση με κάποιο SQLite client (DB Browser for SQLite, sqlite3 CLI κ.λπ.) και τρέξε:
+**Βήμα 1:** Το ΑΦΜ έρχεται από το `.env` (`ISSUER_VAT`). Σε κάθε εκκίνηση του server, το `db.js` δημιουργεί / συγχρονίζει αυτόματα το `vat_number` του company record.
+
+**Βήμα 2:** Τα υπόλοιπα στοιχεία (όνομα, ΔΟΥ, διεύθυνση κ.λπ.) χρειάζεται να τα βάλεις χειροκίνητα μία φορά. Άνοιξε τη βάση με κάποιο SQLite client (DB Browser for SQLite, sqlite3 CLI κ.λπ.) και τρέξε:
 
 ```sql
-INSERT INTO company (
-  id, name, title, vat_number, branch, country,
-  doy_code, doy_name, city, postal_code, street, street_number,
-  email, phone, website, gemh, activity
-) VALUES (
-  1, 'Η Επωνυμία μου', 'Διακριτικός Τίτλος', '123456789', 0, 'GR',
-  '1101', 'Α΄ Αθηνών', 'Αθήνα', '10563', 'Ερμού', '12',
-  'info@example.gr', '2101234567', 'https://example.gr', '000000000000', 'Δραστηριότητα'
-);
+UPDATE company SET
+  name           = 'Η Επωνυμία μου',
+  title          = 'Διακριτικός Τίτλος',
+  branch         = 0,
+  country        = 'GR',
+  doy_code       = '1101',
+  doy_name       = 'Α΄ Αθηνών',
+  city           = 'Αθήνα',
+  postal_code    = '10563',
+  street         = 'Ερμού',
+  street_number  = '12',
+  email          = 'info@example.gr',
+  phone          = '2101234567',
+  website        = 'https://example.gr',
+  gemh           = '000000000000',
+  activity       = 'Δραστηριότητα'
+WHERE id = 1;
 ```
+
+> Το `vat_number` δεν χρειάζεται να μπει εδώ — το διαχειρίζεται το `.env` και ξανασυγχρονίζεται σε κάθε boot.
 
 ### Εκκίνηση backend
 
