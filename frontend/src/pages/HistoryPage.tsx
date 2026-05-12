@@ -4,8 +4,6 @@ import {
   CheckCircle,
   Clock,
   ExternalLink,
-  XCircle,
-  AlertTriangle,
   X,
   CreditCard,
   ChevronLeft,
@@ -17,7 +15,8 @@ import {
   Receipt,
   Coins,
 } from "lucide-react";
-import { getInvoices, cancelInvoice, payInvoicePOS } from "../api";
+import { getInvoices, payInvoicePOS } from "../api";
+import { Spinner } from "../components/Spinner";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import {
@@ -44,6 +43,31 @@ type InvoiceRecord = {
   payment_method?: string;
 };
 
+const B2B_TYPES = ["1.1", "2.1", "2.4", "5.1"];
+
+function getStatusBadge(inv: InvoiceRecord) {
+  const isB2B = B2B_TYPES.includes(inv.invoice_type);
+  const isPending = inv.status === "PENDING" && isB2B;
+  if (isPending) {
+    return {
+      label: "Εκκρεμές",
+      icon: Clock,
+      className:
+        "bg-amber-500/10 text-amber-400 border border-amber-500/20",
+    };
+  }
+  return {
+    label: "Εξοφλήθη",
+    icon: CheckCircle,
+    className:
+      "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",
+  };
+}
+
+function isPendingB2B(inv: InvoiceRecord) {
+  return inv.status === "PENDING" && B2B_TYPES.includes(inv.invoice_type);
+}
+
 type Totals = { net: number; vat: number; gross: number };
 
 export default function HistoryPage() {
@@ -66,15 +90,11 @@ export default function HistoryPage() {
   ).length;
   const limit = 10;
 
-  const [invoiceToCancel, setInvoiceToCancel] = useState<InvoiceRecord | null>(
-    null,
-  );
-  const [cancelling, setCancelling] = useState(false);
-
   const [invoiceToPay, setInvoiceToPay] = useState<InvoiceRecord | null>(null);
   const [payAmount, setPayAmount] = useState("");
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState("");
+  const [justUpdated, setJustUpdated] = useState(false);
 
   const fetchData = (params: {
     vat?: string;
@@ -99,6 +119,8 @@ export default function HistoryPage() {
           setTotal(res.total || 0);
           setTotalPages(res.totalPages || 1);
           setPage(res.page || 1);
+          setJustUpdated(true);
+          setTimeout(() => setJustUpdated(false), 1200);
         }
       })
       .catch(() => console.error("Δεν βρέθηκαν παραστατικά"))
@@ -136,22 +158,6 @@ export default function HistoryPage() {
     fetchData({ vat, mark, from, to, page: p });
   };
 
-  const confirmCancel = async () => {
-    if (!invoiceToCancel || invoiceToCancel.status === "cancelled") return;
-    setCancelling(true);
-    try {
-      const cancelledInvoice = await cancelInvoice(invoiceToCancel.id);
-      setInvoices((prev) =>
-        prev.map((inv) =>
-          inv.id === invoiceToCancel.id ? cancelledInvoice : inv,
-        ),
-      );
-      setInvoiceToCancel(null);
-    } finally {
-      setCancelling(false);
-    }
-  };
-
   const handlePayment = async () => {
     if (!invoiceToPay || !payAmount) return;
     const parsedAmount = parseFloat(payAmount);
@@ -183,10 +189,6 @@ export default function HistoryPage() {
 
   const isInitialLoading = loading && invoices.length === 0;
 
-  const cancelIdentifier = invoiceToCancel
-    ? invoiceToCancel.mark || `${invoiceToCancel.series}-${invoiceToCancel.aa}`
-    : "";
-
   return (
     <div>
       <div className="mb-6 flex flex-row items-start sm:items-center justify-between gap-3">
@@ -194,9 +196,21 @@ export default function HistoryPage() {
           <h1 className="text-2xl font-semibold text-slate-100 flex items-center gap-2">
             <FileText className="w-6 h-6 text-brand-400" /> Ιστορικό Παραστατικών
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            {total} καταχωρήσεις στην επιλεγμένη περίοδο.
-          </p>
+          <div className="text-sm text-slate-500 mt-1 flex items-center gap-2 min-h-[20px]">
+            {loading ? (
+              <>
+                <Spinner size={14} />
+                <span>Αναζήτηση...</span>
+              </>
+            ) : justUpdated ? (
+              <span className="inline-flex items-center gap-1.5 text-emerald-400 animate-in fade-in duration-200">
+                <CheckCircle className="w-3.5 h-3.5" />
+                {total} καταχωρήσεις
+              </span>
+            ) : (
+              <span>{total} καταχωρήσεις στην επιλεγμένη περίοδο.</span>
+            )}
+          </div>
         </div>
         {/* Mobile filter trigger */}
         <Button
@@ -313,7 +327,11 @@ export default function HistoryPage() {
         </div>
       )}
 
-      <div className="bg-slate-850 border border-slate-800 rounded-xl overflow-hidden">
+      <div
+        className={`bg-slate-850 border border-slate-800 rounded-xl overflow-hidden transition-opacity duration-200 ${
+          loading && !isInitialLoading ? "opacity-60" : ""
+        }`}
+      >
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -342,76 +360,49 @@ export default function HistoryPage() {
                 </tr>
               ) : (
                 invoices.map((inv) => {
-                  const isCancelled = inv.status === "cancelled";
-                  const rowClass = isCancelled
-                    ? "opacity-60 bg-slate-900/20"
-                    : "hover:bg-slate-800/20";
-
+                  const status = getStatusBadge(inv);
+                  const StatusIcon = status.icon;
                   return (
                     <tr
                       key={inv.id}
-                      className={`${rowClass} transition-colors`}
+                      className="hover:bg-slate-800/20 transition-colors"
                     >
                       <td className="p-4 font-mono text-slate-300">
-                        <span
-                          className={
-                            isCancelled ? "line-through text-slate-500" : ""
-                          }
-                        >
+                        <span>
                           {inv.invoice_type} | {inv.series}-{inv.aa}
                         </span>
                         <div className="text-[10px] text-slate-600 mt-1">
                           MARK: {inv.mark || "-"}
                         </div>
                       </td>
-                      <td
-                        className={`p-4 ${isCancelled ? "text-slate-500" : "text-slate-400"}`}
-                      >
+                      <td className="p-4 text-slate-400">
                         {inv.issue_date
                           ? new Date(inv.issue_date).toLocaleDateString(
                               "el-GR",
                             )
                           : "-"}
                       </td>
-                      <td
-                        className={`p-4 truncate max-w-[200px] ${isCancelled ? "text-slate-500" : "text-slate-300"}`}
-                      >
+                      <td className="p-4 truncate max-w-[200px] text-slate-300">
                         {inv.customer_name || "-"}
                       </td>
-                      <td
-                        className={`p-4 font-mono text-xs ${isCancelled ? "text-slate-500" : "text-slate-400"}`}
-                      >
+                      <td className="p-4 font-mono text-xs text-slate-400">
                         {inv.customer_vat || "-"}
                       </td>
-                      <td
-                        className={`p-4 text-right font-mono ${isCancelled ? "text-slate-500" : "text-slate-300"}`}
-                      >
+                      <td className="p-4 text-right font-mono text-slate-300">
                         €{(inv.total_net_value || 0).toFixed(2)}
                       </td>
-                      <td
-                        className={`p-4 text-right font-mono ${isCancelled ? "text-slate-500" : "text-slate-300"}`}
-                      >
+                      <td className="p-4 text-right font-mono text-slate-300">
                         €{(inv.total_vat_amount || 0).toFixed(2)}
                       </td>
-                      <td
-                        className={`p-4 text-right font-mono font-medium ${isCancelled ? "text-slate-500" : "text-brand-300"}`}
-                      >
+                      <td className="p-4 text-right font-mono font-medium text-brand-300">
                         €{(inv.total_gross_value || 0).toFixed(2)}
                       </td>
                       <td className="p-4 text-center">
-                        {isCancelled ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                            <XCircle className="w-3.5 h-3.5" /> Ακυρωμένο
-                          </span>
-                        ) : inv.status === "PAID" ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                            <CheckCircle className="w-3.5 h-3.5" /> Εξοφλήθη
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                            <Clock className="w-3.5 h-3.5" /> Εκκρεμεί
-                          </span>
-                        )}
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${status.className}`}
+                        >
+                          <StatusIcon className="w-3.5 h-3.5" /> {status.label}
+                        </span>
                       </td>
                       <td className="p-4">
                         <div className="flex items-center justify-center gap-2">
@@ -430,7 +421,7 @@ export default function HistoryPage() {
                               <ExternalLink className="w-4 h-4" />
                             </span>
                           )}
-                          {inv.status === "PENDING" && !isCancelled && (
+                          {isPendingB2B(inv) && (
                             <button
                               type="button"
                               onClick={() => setInvoiceToPay(inv)}
@@ -440,21 +431,6 @@ export default function HistoryPage() {
                               <CreditCard className="w-4 h-4" />
                             </button>
                           )}
-                          <button
-                            type="button"
-                            onClick={() => setInvoiceToCancel(inv)}
-                            disabled={isCancelled || inv.status === "PAID"}
-                            title={
-                              isCancelled
-                                ? "Ήδη ακυρωμένο"
-                                : inv.status === "PAID"
-                                  ? "Αδύνατη η ακύρωση (Εξοφλημένο)"
-                                  : "Ακύρωση"
-                            }
-                            className="inline-flex p-2 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 disabled:text-slate-700 disabled:hover:bg-transparent disabled:cursor-not-allowed rounded-lg transition-colors"
-                          >
-                            <XCircle className="w-4 h-4" />
-                          </button>
                         </div>
                       </td>
                     </tr>
@@ -479,36 +455,24 @@ export default function HistoryPage() {
             </div>
           ) : (
             invoices.map((inv) => {
-              const isCancelled = inv.status === "cancelled";
+              const status = getStatusBadge(inv);
+              const StatusIcon = status.icon;
               return (
-                <div
-                  key={inv.id}
-                  className={`p-4 ${isCancelled ? "opacity-60" : ""}`}
-                >
+                <div key={inv.id} className="p-4">
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div className="min-w-0">
-                      <div
-                        className={`font-mono text-sm text-slate-200 ${isCancelled ? "line-through text-slate-500" : ""}`}
-                      >
+                      <div className="font-mono text-sm text-slate-200">
                         {inv.invoice_type} | {inv.series}-{inv.aa}
                       </div>
                       <div className="text-[10px] text-slate-600 mt-0.5 truncate">
                         MARK: {inv.mark || "-"}
                       </div>
                     </div>
-                    {isCancelled ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20 shrink-0">
-                        <XCircle className="w-3 h-3" /> Ακυρωμένο
-                      </span>
-                    ) : inv.status === "PAID" ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
-                        <CheckCircle className="w-3 h-3" /> Εξοφλήθη
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 shrink-0">
-                        <Clock className="w-3 h-3" /> Εκκρεμεί
-                      </span>
-                    )}
+                    <span
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium shrink-0 ${status.className}`}
+                    >
+                      <StatusIcon className="w-3 h-3" /> {status.label}
+                    </span>
                   </div>
 
                   <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs mb-3">
@@ -554,39 +518,30 @@ export default function HistoryPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 pt-3 border-t border-slate-800/60">
-                    {inv.invoice_url && (
-                      <a
-                        href={inv.invoice_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-brand-300 bg-brand-500/10 rounded-lg hover:bg-brand-500/20 transition-colors"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" /> PDF
-                      </a>
-                    )}
-                    {inv.status === "PENDING" && !isCancelled && (
-                      <Button
-                        variant="success"
-                        size="sm"
-                        onClick={() => setInvoiceToPay(inv)}
-                        iconLeft={<CreditCard className="w-3.5 h-3.5" />}
-                      >
-                        POS
-                      </Button>
-                    )}
-                    {!isCancelled && inv.status !== "PAID" && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setInvoiceToCancel(inv)}
-                        className="text-rose-400 ml-auto"
-                        iconLeft={<XCircle className="w-3.5 h-3.5" />}
-                      >
-                        Ακύρωση
-                      </Button>
-                    )}
-                  </div>
+                  {(inv.invoice_url || isPendingB2B(inv)) && (
+                    <div className="flex items-center gap-2 pt-3 border-t border-slate-800/60">
+                      {inv.invoice_url && (
+                        <a
+                          href={inv.invoice_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-brand-300 bg-brand-500/10 rounded-lg hover:bg-brand-500/20 transition-colors"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" /> PDF
+                        </a>
+                      )}
+                      {isPendingB2B(inv) && (
+                        <Button
+                          variant="success"
+                          size="sm"
+                          onClick={() => setInvoiceToPay(inv)}
+                          iconLeft={<CreditCard className="w-3.5 h-3.5" />}
+                        >
+                          POS
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })
@@ -693,65 +648,6 @@ export default function HistoryPage() {
                 iconLeft={<RotateCcw className="w-4 h-4" />}
               >
                 Καθαρισμός
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {invoiceToCancel && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-md rounded-xl border border-slate-700 bg-slate-850 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-rose-500/10 text-rose-300">
-                  <AlertTriangle className="h-5 w-5" />
-                </div>
-                <div>
-                  <h2 className="text-sm font-semibold text-slate-100">
-                    Ακύρωση παραστατικού
-                  </h2>
-                  <p className="text-xs text-slate-500">
-                    Η εγγραφή θα μαρκαριστεί ως ακυρωμένη.
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setInvoiceToCancel(null)}
-                disabled={cancelling}
-                className="text-slate-500 transition-colors hover:text-slate-300 disabled:opacity-50"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="px-5 py-5">
-              <p className="text-sm text-slate-300">
-                Θέλεις σίγουρα να ακυρώσεις το παραστατικό{" "}
-                <span className="font-mono text-slate-100">
-                  {cancelIdentifier}
-                </span>
-                ;
-              </p>
-              <div className="mt-4 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
-                Προς το παρόν γίνεται μόνο local ακύρωση.
-              </div>
-            </div>
-            <div className="flex justify-end gap-3 border-t border-slate-800 px-5 py-4">
-              <Button
-                variant="ghost"
-                onClick={() => setInvoiceToCancel(null)}
-                disabled={cancelling}
-              >
-                Άκυρο
-              </Button>
-              <Button
-                variant="danger"
-                onClick={confirmCancel}
-                loading={cancelling}
-                className="min-w-[120px]"
-              >
-                {cancelling ? "Ακύρωση..." : "Επιβεβαίωση"}
               </Button>
             </div>
           </div>

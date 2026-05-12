@@ -3,6 +3,7 @@
 Εφαρμογή έκδοσης ηλεκτρονικών παραστατικών (Β2Β τιμολόγια & λιανικές αποδείξεις) με σύνδεση στο **myDATA της ΑΑΔΕ** μέσω του παρόχου **Bratnet (etimologiera)**.
 
 Υποστηρίζονται:
+
 - Έκδοση τιμολογίων χονδρικής (1.1, 2.1, 2.4, 5.1)
 - Έκδοση αποδείξεων λιανικής (11.1, 11.2)
 - Πληρωμή με **POS** (createSimSign + sendSimInvoice)
@@ -76,10 +77,13 @@ cp .env.example .env
 BRATNET_API_URL=https://api.etimologiera.gr
 BRATNET_USERNAME=your_username_here
 BRATNET_PASSWORD=your_password_here
+ISSUER_VAT=your_vat_here
 PORT=3000
 ```
 
 > **Σημείωση:** τα Bratnet credentials σου τα δίνει ο πάροχος. Χωρίς αυτά, οι κλήσεις στο myDATA θα αποτυγχάνουν αλλά το app θα τρέχει.
+>
+> Το `ISSUER_VAT` είναι το ΑΦΜ της δικής σου επιχείρησης (του εκδότη). Σε κάθε εκκίνηση του server, το `vat_number` του company record συγχρονίζεται με αυτή την τιμή.
 >
 > Το `.env` είναι στο `.gitignore` οπότε **δεν** ανεβαίνει στο git. Το `.env.example` ανεβαίνει για να ξέρει ο επόμενος ποιες variables χρειάζεται.
 
@@ -140,7 +144,7 @@ npm run preview    # δοκιμή του build
 2. Ελέγξε ότι το **Στοιχεία Επιχείρησης** εμφανίζει σωστά τα δικά σου δεδομένα
 3. Πήγαινε στο **Πελατολόγιο** και πρόσθεσε τους πρώτους πελάτες
 4. Στο **Ταμείο (POS)** μπορείς να εκδώσεις παραστατικά:
-   - Επίλεξε *Τιμολόγιο* (B2B) ή *Λιανική*
+   - Επίλεξε _Τιμολόγιο_ (B2B) ή _Λιανική_
    - Επίλεξε σειρά (ΤΠΥ, ΑΛΠ, κ.λπ.)
    - Συμπλήρωσε ποσά
    - Διάλεξε τρόπο πληρωμής: Μετρητά / Εκκρεμές / POS
@@ -150,22 +154,22 @@ npm run preview    # δοκιμή του build
 
 ## API endpoints (συνοπτικά)
 
-| Method | Endpoint | Σκοπός |
-|---|---|---|
-| GET | `/api/company` | Στοιχεία εκδότη |
-| GET | `/api/customers` | Λίστα πελατών |
-| POST | `/api/customers` | Νέος πελάτης |
-| DELETE | `/api/customers/:id` | Διαγραφή πελάτη |
-| GET | `/api/invoices` | Ιστορικό (filters: `vat`, `mark`, `from`, `to`, `page`, `limit`) |
-| POST | `/api/invoices` | Αποθήκευση εγγραφής τοπικά |
-| POST | `/api/invoices/:id/pay` | Ετεροχρονισμένη πληρωμή με POS |
-| GET | `/api/series` | Λίστα σειρών |
-| PUT | `/api/series/:id` | Ενημέρωση next_aa |
-| POST | `/api/sendInvoice` | Έκδοση χωρίς POS |
-| POST | `/api/sendSimInvoice` | Έκδοση με POS (απαιτεί signature) |
-| POST | `/api/createSimSign` | Παραγωγή signature για νέο POS παραστατικό |
-| POST | `/api/createSign` | Παραγωγή signature για ετεροχρονισμένη πληρωμή |
-| GET | `/api/credits` | Υπόλοιπο credits Bratnet |
+| Method | Endpoint                | Σκοπός                                                           |
+| ------ | ----------------------- | ---------------------------------------------------------------- |
+| GET    | `/api/company`          | Στοιχεία εκδότη                                                  |
+| GET    | `/api/customers`        | Λίστα πελατών                                                    |
+| POST   | `/api/customers`        | Νέος πελάτης                                                     |
+| DELETE | `/api/customers/:id`    | Διαγραφή πελάτη                                                  |
+| GET    | `/api/invoices`         | Ιστορικό (filters: `vat`, `mark`, `from`, `to`, `page`, `limit`) |
+| POST   | `/api/invoices`         | Αποθήκευση εγγραφής τοπικά                                       |
+| POST   | `/api/invoices/:id/pay` | Ετεροχρονισμένη πληρωμή B2B με POS                               |
+| GET    | `/api/series`           | Λίστα σειρών                                                     |
+| PUT    | `/api/series/:id`       | Ενημέρωση next_aa                                                |
+| POST   | `/api/sendInvoice`      | Έκδοση χωρίς POS                                                 |
+| POST   | `/api/sendSimInvoice`   | Έκδοση με POS (απαιτεί signature)                                |
+| POST   | `/api/createSimSign`    | Παραγωγή signature για νέο POS παραστατικό                       |
+| POST   | `/api/createSign`       | Παραγωγή signature για ετεροχρονισμένη πληρωμή                   |
+| GET    | `/api/credits`          | Υπόλοιπο credits Bratnet                                         |
 
 ---
 
@@ -188,6 +192,7 @@ npm run preview    # δοκιμή του build
 ## Παραγωγή & Deployment
 
 Για production deployment, αυτή η εφαρμογή χρειάζεται:
+
 - HTTPS (απαιτείται από την ΑΑΔΕ για paragraf production endpoints)
 - Authentication layer για τους χρήστες (τώρα δεν υπάρχει)
 - Καλύτερο secrets management (όχι `.env` σε plain text)

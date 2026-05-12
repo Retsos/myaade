@@ -148,31 +148,4 @@ router.post("/", (req, res) => {
   }
 });
 
-router.patch("/:id/cancel", async (req, res) => {
-  try {
-    const invoice = db
-      .prepare("SELECT * FROM invoices WHERE id = ?")
-      .get(req.params.id);
-
-    if (!invoice) {
-      return res.status(404).json({ error: "Invoice not found" });
-    }
-
-    if (invoice.status === "cancelled") {
-      return res.json(invoice);
-    }
-
-    db.prepare("UPDATE invoices SET status = 'cancelled' WHERE id = ?").run(
-      invoice.id,
-    );
-    const cancelledInvoice = db
-      .prepare("SELECT * FROM invoices WHERE id = ?")
-      .get(invoice.id);
-
-    res.json(cancelledInvoice);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 module.exports = router;

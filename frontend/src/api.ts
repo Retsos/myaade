@@ -66,11 +66,6 @@ export async function saveInvoiceRecord(payload: Record<string, unknown>) {
   return data;
 }
 
-export async function cancelInvoice(id: number) {
-  const { data } = await api.patch(`/invoices/${id}/cancel`);
-  return data;
-}
-
 export async function getCredits() {
   const { data } = await api.get('/credits');
   return data;

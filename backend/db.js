@@ -1,3 +1,4 @@
+require("dotenv").config();
 const Database = require("better-sqlite3");
 const path = require("path");
 
@@ -30,6 +31,24 @@ db.prepare(
   )
 `
 ).run();
+
+// Συγχρονισμός vat_number του εκδότη με την env variable ISSUER_VAT
+const issuerVat = process.env.ISSUER_VAT;
+if (issuerVat) {
+  const existing = db.prepare("SELECT id FROM company WHERE id = 1").get();
+  if (existing) {
+    db.prepare("UPDATE company SET vat_number = ? WHERE id = 1").run(issuerVat);
+  } else {
+    db.prepare("INSERT INTO company (id, vat_number) VALUES (1, ?)").run(issuerVat);
+    console.warn(
+      "[DB] Δημιουργήθηκε αρχικό company record με μόνο το ΑΦΜ. Πρόσθεσε τα υπόλοιπα στοιχεία (όνομα, ΔΟΥ, διεύθυνση...) χειροκίνητα.",
+    );
+  }
+} else {
+  console.warn(
+    "[DB] ISSUER_VAT δεν έχει οριστεί στο .env — το vat_number θα διαβαστεί από τη βάση.",
+  );
+}
 
 db.prepare(
   `
