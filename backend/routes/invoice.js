@@ -14,7 +14,22 @@ router.post("/sendInvoice", async (req, res) => {
     issue_time,
     items,
     payment_type,
+    correlated_invoices, // array of MARKs — required for credit notes (5.1)
   } = req.body;
+
+  // Credit note safeguard: 5.1 cannot be issued without referencing the
+  // original invoice it credits.
+  if (invoice_type === "5.1") {
+    if (
+      !Array.isArray(correlated_invoices) ||
+      correlated_invoices.length === 0
+    ) {
+      return res.status(400).json({
+        error:
+          "Το πιστωτικό τιμολόγιο (5.1) απαιτεί τουλάχιστον ένα MARK αρχικού παραστατικού στο πεδίο correlated_invoices.",
+      });
+    }
+  }
 
   // --- 1. Validation ---
   if (!invoice_type || !aa || !issue_date || !items?.length) {
@@ -215,7 +230,12 @@ router.post("/sendInvoice", async (req, res) => {
           invoiceType: invoice_type,
           currency: "EUR",
           vatPaymentSuspension: false,
-          correlatedInvoices: null,
+          // For credit notes (5.1) AADE requires the MARK(s) of the original
+          // invoice(s) being credited. For everything else this stays null.
+          correlatedInvoices:
+            Array.isArray(correlated_invoices) && correlated_invoices.length
+              ? correlated_invoices.map((m) => Number(m))
+              : null,
           dispatchDate: null,
           dispatchTime: null,
           movePurpose: null,
