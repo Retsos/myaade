@@ -1,4 +1,4 @@
-import { Banknote, CreditCard, Clock } from "lucide-react";
+import { Banknote, CreditCard, Clock, Link2 } from "lucide-react";
 import Button from "../ui/Button";
 
 interface CheckoutSummaryProps {
@@ -10,6 +10,8 @@ interface CheckoutSummaryProps {
   customerId: number | null;
   loading: boolean;
   handleCheckout: (paymentMethod: "CASH" | "POS" | "PENDING") => void;
+  /** True when the selected series is a credit note (5.1). */
+  isCreditNote?: boolean;
 }
 
 export default function CheckoutSummary({
@@ -21,6 +23,7 @@ export default function CheckoutSummary({
   customerId,
   loading,
   handleCheckout,
+  isCreditNote = false,
 }: CheckoutSummaryProps) {
   const isInvoice = documentType === "invoice";
   const disabledCheckout =
@@ -47,16 +50,34 @@ export default function CheckoutSummary({
         </div>
         <div className="pt-4 border-t border-slate-800 flex justify-between items-center">
           <span className="text-base font-medium text-slate-300">
-            Τελικό Ποσό:
+            {isCreditNote ? "Ποσό Πιστωτικού:" : "Τελικό Ποσό:"}
           </span>
-          <span className="text-2xl font-semibold text-emerald-400 font-mono">
-            €{grossValue.toFixed(2)}
+          <span
+            className={`text-2xl font-semibold font-mono ${
+              isCreditNote ? "text-rose-400" : "text-emerald-400"
+            }`}
+          >
+            {isCreditNote ? "-" : ""}€{grossValue.toFixed(2)}
           </span>
         </div>
       </div>
 
       <div className="space-y-3">
-        {isInvoice ? (
+        {isCreditNote ? (
+          // Credit notes: single-action issuance. No payment method choice —
+          // a credit note reduces existing debt, it isn't itself "paid".
+          <Button
+            variant="danger"
+            size="lg"
+            fullWidth
+            onClick={() => handleCheckout("PENDING")}
+            disabled={disabledCheckout}
+            loading={loading}
+            iconLeft={!loading && <Link2 className="w-5 h-5" />}
+          >
+            {loading ? "Έκδοση..." : "Έκδοση Πιστωτικού"}
+          </Button>
+        ) : isInvoice ? (
           <div className="grid grid-cols-2 gap-3">
             <Button
               variant="secondary"
@@ -118,7 +139,9 @@ export default function CheckoutSummary({
       </div>
 
       <p className="text-xs text-slate-500 mt-4 text-center">
-        Η πληρωμή POS απαιτεί διασύνδεση με το τερματικό.
+        {isCreditNote
+          ? "Το πιστωτικό μειώνει το χρέος του πελάτη — δεν περιλαμβάνει πληρωμή."
+          : "Η πληρωμή POS απαιτεί διασύνδεση με το τερματικό."}
       </p>
     </div>
   );

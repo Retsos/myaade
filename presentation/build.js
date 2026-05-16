@@ -141,7 +141,7 @@ function addBase(title) {
   });
 
   const challenges = [
-    { num: "6+", label: "διαφορετικοί τύποι παραστατικών (1.1, 2.1, 2.4, 5.1, 11.1, 11.2)" },
+    { num: "5+", label: "διαφορετικοί τύποι παραστατικών (1.1, 2.1, 5.1, 11.1, 11.2)" },
     { num: "POS", label: "διαφορετικό flow με digital signature (createSimSign)" },
     { num: "Live", label: "πληρωμές B2B με ετεροχρονισμένη εξόφληση" },
     { num: "JSON", label: "σύνθετα payloads · 100+ πεδία ανά παραστατικό" },
@@ -278,9 +278,15 @@ function addBase(title) {
   const features = [
     {
       title: "Τιμολόγια Χονδρικής",
-      sub: "B2B · Τύποι 1.1 · 2.1 · 2.4 · 5.1",
+      sub: "B2B · Τύποι 1.1 · 2.1",
       desc: "Με ή χωρίς POS · Επί πιστώσει · Μετρητά",
       color: COLORS.brand,
+    },
+    {
+      title: "Πιστωτικά Τιμολόγια",
+      sub: "Τύπος 5.1 · με correlatedInvoices",
+      desc: "Searchable picker αρχικού · auto-fill ποσού/πελάτη",
+      color: COLORS.rose,
     },
     {
       title: "Αποδείξεις Λιανικής",
@@ -301,15 +307,9 @@ function addBase(title) {
       color: COLORS.brandLight,
     },
     {
-      title: "Ιστορικό & Αναζήτηση",
+      title: "Ιστορικό · Mobile UI",
       sub: "Φίλτρα ΑΦΜ / MARK / Ημερομηνίες",
-      desc: "Pagination + σύνολα περιόδου από backend",
-      color: COLORS.rose,
-    },
-    {
-      title: "Mobile-First UI",
-      sub: "Responsive sidebar · Filter modal",
-      desc: "Card view σε κινητό · Skeleton loaders",
+      desc: "Pagination + σύνολα + responsive cards",
       color: COLORS.brand,
     },
   ];
@@ -548,7 +548,7 @@ function addBase(title) {
   const points = [
     { h: "Καθαρή αρχιτεκτονική", d: ".env για config · DB για state · zustand για cache" },
     { h: "Documented codebase", d: "Σχόλια σε κάθε route, validation και complex hook" },
-    { h: "Real-world gotchas λυμένα", d: "Auto-retry στο 603 · tidNsp naming · transactionId dedup" },
+    { h: "Real-world gotchas λυμένα", d: "Auto-retry 603 · tidNsp naming · correlatedInvoices για 5.1" },
     { h: "Production-ready UX", d: "Skeleton loaders · Toasts · Validation · Mobile-first" },
   ];
 

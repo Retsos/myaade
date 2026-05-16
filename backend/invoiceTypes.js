@@ -17,15 +17,10 @@ const INVOICE_TYPES = {
     defaultClassificationType: "E3_561_001",
     requiresCounterpart: true,
   },
-  "2.4": {
-    label: "Τιμολόγιο Παροχής Ενδοκοινοτικά",
-    defaultSeries: "ΤΠΥ-Ε",
-    isUnsigned: false,
-    defaultPaymentType: 5,
-    defaultClassificationCategory: "category1_3",
-    defaultClassificationType: "E3_561_001",
-    requiresCounterpart: true,
-  },
+  // Credit note: ALSO requires `correlatedInvoices` in the AADE payload —
+  // the MARK(s) of the original invoice(s) being credited. The CheckoutPage
+  // enforces this via CorrelatedInvoiceSelector and the backend rejects
+  // 5.1 requests that don't include it (see routes/invoice.js).
   "5.1": {
     label: "Πιστωτικό Τιμολόγιο",
     defaultSeries: "ΠΤ",

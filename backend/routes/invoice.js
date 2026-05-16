@@ -18,7 +18,8 @@ router.post("/sendInvoice", async (req, res) => {
   } = req.body;
 
   // Credit note safeguard: 5.1 cannot be issued without referencing the
-  // original invoice it credits.
+  // original invoice it credits. AADE rejects (error 204) otherwise — we
+  // catch it here so the user gets a clear local message.
   if (invoice_type === "5.1") {
     if (
       !Array.isArray(correlated_invoices) ||

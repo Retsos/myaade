@@ -38,12 +38,16 @@ router.get("/", (req, res) => {
       .get(...params);
     const total = totalRow?.cnt || 0;
 
+    // Period totals (net / vat / gross) across the same filtered set.
+    // Credit notes (5.1) reduce revenue, so we subtract them here using a
+    // CASE expression. This way period totals match what the customer
+    // actually owes, not just the sum of all positive line items.
     const sumRow = db
       .prepare(
         `SELECT
-           COALESCE(SUM(total_net_value),  0) AS net,
-           COALESCE(SUM(total_vat_amount), 0) AS vat,
-           COALESCE(SUM(total_gross_value),0) AS gross
+           COALESCE(SUM(CASE WHEN invoice_type = '5.1' THEN -total_net_value   ELSE total_net_value   END), 0) AS net,
+           COALESCE(SUM(CASE WHEN invoice_type = '5.1' THEN -total_vat_amount  ELSE total_vat_amount  END), 0) AS vat,
+           COALESCE(SUM(CASE WHEN invoice_type = '5.1' THEN -total_gross_value ELSE total_gross_value END), 0) AS gross
          FROM invoices ${whereSql}`,
       )
       .get(...params);
@@ -98,6 +102,7 @@ router.post("/", (req, res) => {
     mark,
     uid,
     invoice_url,
+    correlated_mark, // only set when invoice_type === "5.1" (credit notes)
   } = req.body;
 
   let status = req.body.status;
@@ -117,9 +122,9 @@ router.post("/", (req, res) => {
     const stmt = db.prepare(`
       INSERT INTO invoices (
         customer_name, customer_vat, invoice_type, series, aa, issue_date,
-        total_net_value, total_vat_amount, total_gross_value, mark, uid, invoice_url, status, payment_method
+        total_net_value, total_vat_amount, total_gross_value, mark, uid, invoice_url, status, payment_method, correlated_mark
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const result = stmt.run(
@@ -137,6 +142,7 @@ router.post("/", (req, res) => {
       invoice_url,
       status,
       payment_method,
+      correlated_mark || null,
     );
 
     const newInvoice = db

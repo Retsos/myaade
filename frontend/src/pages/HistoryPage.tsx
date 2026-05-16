@@ -51,30 +51,42 @@ type InvoiceRecord = {
 
 // myDATA types that require a counterpart (i.e. proper invoices, not retail
 // receipts). Used to decide which status badge / actions to show per row.
-const B2B_TYPES = ["1.1", "2.1", "2.4", "5.1"];
+const B2B_TYPES = ["1.1", "2.1", "5.1"];
 
-// Maps a row to its visual status. "Εκκρεμές" only applies to B2B invoices
-// that are still PENDING — retail is always considered paid at issuance.
+// Maps a row to its visual status.
+//   - Credit notes (5.1) get a neutral "Εκδόθηκε" — they don't represent
+//     pending revenue, they reduce existing debt.
+//   - Other B2B invoices show "Εκκρεμές" while PENDING, "Εξοφλήθη" otherwise.
+//   - Retail is always considered paid at issuance.
 function getStatusBadge(inv: InvoiceRecord) {
+  if (inv.invoice_type === "5.1") {
+    return {
+      label: "Εκδόθηκε",
+      icon: CheckCircle,
+      className: "bg-slate-500/10 text-slate-300 border border-slate-500/20",
+    };
+  }
   const isB2B = B2B_TYPES.includes(inv.invoice_type);
   const isPending = inv.status === "PENDING" && isB2B;
   if (isPending) {
     return {
       label: "Εκκρεμές",
       icon: Clock,
-      className:
-        "bg-amber-500/10 text-amber-400 border border-amber-500/20",
+      className: "bg-amber-500/10 text-amber-400 border border-amber-500/20",
     };
   }
   return {
     label: "Εξοφλήθη",
     icon: CheckCircle,
-    className:
-      "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",
+    className: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",
   };
 }
 
+// Used to decide if the "Pay via POS" action button should appear on a row.
+// Credit notes are intentionally excluded — they can't be "paid", they're
+// adjustments to a previous invoice's balance.
 function isPendingB2B(inv: InvoiceRecord) {
+  if (inv.invoice_type === "5.1") return false;
   return inv.status === "PENDING" && B2B_TYPES.includes(inv.invoice_type);
 }
 
@@ -115,6 +127,10 @@ export default function HistoryPage() {
   // otherwise a human-readable Greek message. The amount input passes this
   // through the Input component's `error` prop so the row turns red as the
   // user types — no need to click "Pay" first to see what's wrong.
+  //
+  // NOTE: gross values can have FP noise (e.g. 22.33 stored as 22.33000001
+  // because of net+VAT rounding). We round both sides to 2 decimals before
+  // comparing so the user can type the exact displayed amount.
   const payValidation = (() => {
     if (!invoiceToPay) return null;
     if (payAmount.trim() === "") return "Συμπληρώστε το ποσό χρέωσης.";
@@ -122,7 +138,9 @@ export default function HistoryPage() {
       return "Μη έγκυρος αριθμός. Χρησιμοποίησε π.χ. 12.50";
     const n = parseFloat(payAmount);
     if (n <= 0) return "Το ποσό πρέπει να είναι μεγαλύτερο από 0.";
-    if (n < invoiceToPay.total_gross_value)
+    const typedCents = Math.round(n * 100);
+    const minCents = Math.round(invoiceToPay.total_gross_value * 100);
+    if (typedCents < minCents)
       return `Το ποσό υπολείπεται. Ελάχιστο: €${invoiceToPay.total_gross_value.toFixed(2)}`;
     return null;
   })();
@@ -217,6 +235,7 @@ export default function HistoryPage() {
         invoiceToPay.id,
         parseFloat(payAmount),
       );
+      // Optimistic single-row update so the modal close feels instant.
       setInvoices((prev) =>
         prev.map((inv) => (inv.id === invoiceToPay.id ? result.invoice : inv)),
       );
@@ -228,6 +247,10 @@ export default function HistoryPage() {
         type: "success",
         message: `Το παραστατικό ${seriesRef} εξοφλήθηκε επιτυχώς μέσω POS.`,
       });
+      // Refetch the full page so the summary cards (totals) reflect the
+      // new payment state. The optimistic update above kept the row in sync
+      // but the SQL SUM still ran on stale data on the previous fetch.
+      fetchData({ vat, mark, from, to, page });
     } catch (err: any) {
       console.error("Payment failed:", err);
       setPayError(
@@ -420,15 +443,33 @@ export default function HistoryPage() {
                 invoices.map((inv) => {
                   const status = getStatusBadge(inv);
                   const StatusIcon = status.icon;
+                  const isCredit = inv.invoice_type === "5.1";
+                  // Credit notes reduce revenue → render amounts with a
+                  // leading minus sign and rose color so they read as
+                  // negatives at a glance.
+                  const sign = isCredit ? "-" : "";
+                  const amtClass = isCredit ? "text-rose-400" : "text-slate-300";
+                  const grossClass = isCredit
+                    ? "text-rose-400"
+                    : "text-brand-300";
                   return (
                     <tr
                       key={inv.id}
-                      className="hover:bg-slate-800/20 transition-colors"
+                      className={`hover:bg-slate-800/20 transition-colors ${
+                        isCredit ? "bg-rose-500/5" : ""
+                      }`}
                     >
                       <td className="p-4 font-mono text-slate-300">
-                        <span>
-                          {inv.invoice_type} | {inv.series}-{inv.aa}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span>
+                            {inv.invoice_type} | {inv.series}-{inv.aa}
+                          </span>
+                          {isCredit && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 font-medium">
+                              Πιστωτικό
+                            </span>
+                          )}
+                        </div>
                         <div className="text-[10px] text-slate-600 mt-1">
                           MARK: {inv.mark || "-"}
                         </div>
@@ -446,14 +487,16 @@ export default function HistoryPage() {
                       <td className="p-4 font-mono text-xs text-slate-400">
                         {inv.customer_vat || "-"}
                       </td>
-                      <td className="p-4 text-right font-mono text-slate-300">
-                        €{(inv.total_net_value || 0).toFixed(2)}
+                      <td className={`p-4 text-right font-mono ${amtClass}`}>
+                        {sign}€{(inv.total_net_value || 0).toFixed(2)}
                       </td>
-                      <td className="p-4 text-right font-mono text-slate-300">
-                        €{(inv.total_vat_amount || 0).toFixed(2)}
+                      <td className={`p-4 text-right font-mono ${amtClass}`}>
+                        {sign}€{(inv.total_vat_amount || 0).toFixed(2)}
                       </td>
-                      <td className="p-4 text-right font-mono font-medium text-brand-300">
-                        €{(inv.total_gross_value || 0).toFixed(2)}
+                      <td
+                        className={`p-4 text-right font-mono font-medium ${grossClass}`}
+                      >
+                        {sign}€{(inv.total_gross_value || 0).toFixed(2)}
                       </td>
                       <td className="p-4 text-center">
                         <span
@@ -515,12 +558,24 @@ export default function HistoryPage() {
             invoices.map((inv) => {
               const status = getStatusBadge(inv);
               const StatusIcon = status.icon;
+              const isCredit = inv.invoice_type === "5.1";
+              const sign = isCredit ? "-" : "";
+              const amtClass = isCredit ? "text-rose-400" : "text-slate-300";
+              const grossClass = isCredit ? "text-rose-400" : "text-brand-300";
               return (
-                <div key={inv.id} className="p-4">
+                <div
+                  key={inv.id}
+                  className={`p-4 ${isCredit ? "bg-rose-500/5" : ""}`}
+                >
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div className="min-w-0">
-                      <div className="font-mono text-sm text-slate-200">
+                      <div className="font-mono text-sm text-slate-200 flex items-center gap-1.5">
                         {inv.invoice_type} | {inv.series}-{inv.aa}
+                        {isCredit && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 font-medium">
+                            Πιστωτικό
+                          </span>
+                        )}
                       </div>
                       <div className="text-[10px] text-slate-600 mt-0.5 truncate">
                         MARK: {inv.mark || "-"}
@@ -558,20 +613,20 @@ export default function HistoryPage() {
                     </div>
                     <div>
                       <p className="text-slate-500">Καθαρή</p>
-                      <p className="text-slate-300 font-mono">
-                        €{(inv.total_net_value || 0).toFixed(2)}
+                      <p className={`${amtClass} font-mono`}>
+                        {sign}€{(inv.total_net_value || 0).toFixed(2)}
                       </p>
                     </div>
                     <div>
                       <p className="text-slate-500">ΦΠΑ</p>
-                      <p className="text-slate-300 font-mono">
-                        €{(inv.total_vat_amount || 0).toFixed(2)}
+                      <p className={`${amtClass} font-mono`}>
+                        {sign}€{(inv.total_vat_amount || 0).toFixed(2)}
                       </p>
                     </div>
                     <div>
                       <p className="text-slate-500">Σύνολο</p>
-                      <p className="text-brand-300 font-mono font-semibold">
-                        €{(inv.total_gross_value || 0).toFixed(2)}
+                      <p className={`${grossClass} font-mono font-semibold`}>
+                        {sign}€{(inv.total_gross_value || 0).toFixed(2)}
                       </p>
                     </div>
                   </div>

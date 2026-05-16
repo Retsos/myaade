@@ -17,7 +17,11 @@ router.post("/:id/pay", async (req, res) => {
     if (!invoice) return res.status(404).json({ error: 'Δεν βρέθηκε το παραστατικό στη βάση.' });
     if (invoice.status === 'PAID') return res.status(400).json({ error: 'Αυτό το παραστατικό είναι ήδη εξοφλημένο.' });
     if (!invoice.uid) return res.status(400).json({ error: 'Δεν υπάρχει UID για να ταυτοποιηθεί το χρέος.' });
-    if (parseFloat(pay_amount) < invoice.total_gross_value) {
+    // Compare in cents to dodge floating-point noise — gross values often
+    // come back as e.g. 22.33000001 because of net+VAT rounding.
+    const payCents = Math.round(parseFloat(pay_amount) * 100);
+    const minCents = Math.round(invoice.total_gross_value * 100);
+    if (payCents < minCents) {
       return res.status(400).json({ error: `Το ποσό δεν επαρκεί. Το συνολικό ποσό του παραστατικού είναι ${invoice.total_gross_value}€.` });
     }
 

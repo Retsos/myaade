@@ -80,6 +80,16 @@ try {
   // Column already exists
 }
 
+// Migration: add correlated_mark for credit notes (5.1).
+// Stores the MARK of the original invoice that this credit note adjusts,
+// so we can compute "how much of the original is still creditable" without
+// hitting the AADE on every check.
+try {
+  db.prepare(`ALTER TABLE invoices ADD COLUMN correlated_mark TEXT`).run();
+} catch (e) {
+  // Column already exists
+}
+
 // Αν υπάρχει παλιό series table με διαφορετικό schema, drop & recreate
 const existingSeriesCols = db.prepare("PRAGMA table_info(series)").all();
 if (existingSeriesCols.length > 0) {
@@ -107,7 +117,6 @@ const SEED_SERIES = [
   { name: "ΤΠ",    invoice_type: "1.1",  description: "Τιμολόγιο Πώλησης" },
   { name: "ΤΔΑ",   invoice_type: "1.1",  description: "Τιμολόγιο - Δελτίο Αποστολής" },
   { name: "ΤΠΥ",   invoice_type: "2.1",  description: "Τιμολόγιο Παροχής Υπηρεσιών" },
-  { name: "ΤΠΥ-Ε", invoice_type: "2.4",  description: "Ενδοκοινοτικά" },
   { name: "ΠΤ",    invoice_type: "5.1",  description: "Πιστωτικό Τιμολόγιο" },
   { name: "ΑΛΠ",   invoice_type: "11.1", description: "Απόδειξη Λιανικής Πώλησης" },
   { name: "ΑΠΥ",   invoice_type: "11.2", description: "Απόδειξη Παροχής Υπηρεσιών" },

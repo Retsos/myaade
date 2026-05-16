@@ -38,7 +38,7 @@ interface CorrelatedInvoice {
 // Document-type buckets. The UI exposes only two top-level choices
 // ("invoice" vs "retail") but each maps to multiple myDATA invoice types
 // available via the series dropdown.
-const B2B_TYPES = ["1.1", "2.1", "2.4", "5.1"];
+const B2B_TYPES = ["1.1", "2.1", "5.1"];
 const RETAIL_TYPES = ["11.1", "11.2"];
 
 export default function UnifiedCheckoutPage() {
@@ -72,11 +72,14 @@ export default function UnifiedCheckoutPage() {
   // original. Reset whenever the selected series leaves "5.1".
   const [correlatedInvoice, setCorrelatedInvoice] =
     useState<CorrelatedInvoice | null>(null);
+  // Bumped after every successful issuance so the CorrelatedInvoiceSelector
+  // refetches and the dropdown reflects any new credit notes immediately.
+  const [correlatedRefreshKey, setCorrelatedRefreshKey] = useState(0);
 
   // Filter the full series list down to the ones valid for the chosen
   // document type. The real invoice_type that we send to AADE comes from
   // the *selected* series — not from documentType — because each B2B/retail
-  // bucket has multiple types (e.g. invoice can be 1.1, 2.1, 2.4, 5.1).
+  // bucket has multiple types (e.g. invoice can be 1.1, 2.1, 5.1).
   const allowedTypes =
     documentType === "invoice" ? B2B_TYPES : RETAIL_TYPES;
   const availableSeries = allSeries.filter((s) =>
@@ -86,6 +89,8 @@ export default function UnifiedCheckoutPage() {
   const actualInvoiceType =
     selectedSeries?.invoice_type ||
     (documentType === "invoice" ? "2.1" : "11.1");
+  // 5.1 (Πιστωτικό) requires AADE `correlatedInvoices`. The selector +
+  // amount pre-fill + POS-block all key off this flag.
   const isCreditNote = actualInvoiceType === "5.1";
   const [description, setDescription] = useState("Πώληση Εμπορευμάτων");
 
@@ -122,7 +127,7 @@ export default function UnifiedCheckoutPage() {
   }, [series, allSeries]);
 
   // Reset the credit-note correlation whenever the user moves away from
-  // the credit-note series (or changes document type entirely).
+  // a type that requires correlation (5.1).
   useEffect(() => {
     if (!isCreditNote && correlatedInvoice !== null) {
       setCorrelatedInvoice(null);
@@ -146,9 +151,18 @@ export default function UnifiedCheckoutPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customerId]);
 
-  // Pre-fill amount + customer + description from the original invoice when
-  // the user picks one. The customer is matched by VAT — if not found in the
-  // current customer list (e.g. deleted), we surface a toast and abort.
+  // Called by CorrelatedInvoiceSelector when the user picks (or clears) the
+  // original invoice that the credit note will adjust. Three side-effects:
+  //   1. Lookup the matching customer by VAT (invoice rows store a snapshot
+  //      of customer_vat as text, so we cross-reference with the live customer
+  //      table to get a usable customer_id for the new payload).
+  //      → If the customer no longer exists in the DB (deleted), warn and
+  //        abort the auto-fill so the user adds them back first.
+  //   2. Pre-fill the amount with the original net value — credit notes are
+  //      typically equal to or less than the original. The user can edit it
+  //      down for partial credits.
+  //   3. Pre-fill the description with a human-readable reference so anyone
+  //      auditing the books understands what the credit note refers to.
   const handleCorrelatedSelect = (inv: CorrelatedInvoice | null) => {
     setCorrelatedInvoice(inv);
     if (!inv) return;
@@ -161,14 +175,19 @@ export default function UnifiedCheckoutPage() {
         setToast({
           type: "error",
           message:
-            "Ο πελάτης του αρχικού τιμολογίου δεν υπάρχει πια στο πελατολόγιο. Πρόσθεσέ τον ξανά για να συνεχίσεις.",
+            "Ο πελάτης του αρχικού παραστατικού δεν υπάρχει πια στο πελατολόγιο. Πρόσθεσέ τον ξανά για να συνεχίσεις.",
         });
       }
     }
-    if (typeof inv.total_net_value === "number") {
-      setNetValue(String(inv.total_net_value));
+    // Pre-fill amount + description for credit notes — the amount mirrors
+    // the original (user can edit down for partial credit) and the description
+    // gives a human-readable audit reference.
+    if (isCreditNote) {
+      if (typeof inv.total_net_value === "number") {
+        setNetValue(String(inv.total_net_value));
+      }
+      setDescription(`Πιστωτικό για ${inv.series}-${inv.aa}`);
     }
-    setDescription(`Πιστωτικό για ${inv.series}-${inv.aa}`);
   };
 
   const getVatCategory = (rate: number) => {
@@ -287,9 +306,9 @@ export default function UnifiedCheckoutPage() {
           payment_type: paymentMethod === "CASH" ? 3 : 5, // 3: Μετρητά, 5: Επί Πιστώσει (PENDING)
         };
 
-        // Credit notes: include the MARK of the original invoice that this
-        // credit note adjusts. Backend converts these to numbers and puts
-        // them under invoiceHeader.correlatedInvoices.
+        // Credit notes (5.1): include the MARK of the original invoice that
+        // this credit note adjusts. Backend converts these to numbers and
+        // puts them under invoiceHeader.correlatedInvoices.
         if (isCreditNote && correlatedInvoice?.mark) {
           payload.correlated_invoices = [correlatedInvoice.mark];
         }
@@ -297,13 +316,17 @@ export default function UnifiedCheckoutPage() {
         result = await sendInvoice(payload);
         setToast({
           type: "success",
-          message: isInvoice
-            ? "Το τιμολόγιο εκδόθηκε επιτυχώς!"
-            : "Η απόδειξη εκδόθηκε επιτυχώς!",
+          message: isCreditNote
+            ? `Το πιστωτικό για ${correlatedInvoice?.series}-${correlatedInvoice?.aa} εκδόθηκε επιτυχώς!`
+            : isInvoice
+              ? "Το τιμολόγιο εκδόθηκε επιτυχώς!"
+              : "Η απόδειξη εκδόθηκε επιτυχώς!",
         });
       }
 
-      // Save to local database
+      // Save to local database. For credit notes also store the MARK of the
+      // original invoice — that lets the picker compute "remaining creditable"
+      // and disable invoices that are already fully credited.
       const customer = customers.find((c) => c.id === customerId);
       await saveInvoiceRecord({
         customer_name: isInvoice
@@ -327,6 +350,10 @@ export default function UnifiedCheckoutPage() {
               ? "PAID-POS"
               : "PENDING",
         payment_method: paymentMethod,
+        correlated_mark:
+          isCreditNote && correlatedInvoice?.mark
+            ? String(correlatedInvoice.mark)
+            : null,
       }).catch((e) => console.error("Failed to save to db", e));
 
       // Reset form on success
@@ -336,6 +363,9 @@ export default function UnifiedCheckoutPage() {
         setCorrelatedInvoice(null);
         setDescription("Πώληση Εμπορευμάτων");
       }
+      // Force CorrelatedInvoiceSelector to refetch — its "credited so far"
+      // calculation depends on the local invoices table which we just changed.
+      setCorrelatedRefreshKey((k) => k + 1);
 
       // Refresh all series counters from DB
       try {
@@ -348,6 +378,19 @@ export default function UnifiedCheckoutPage() {
       }
     } catch (err: any) {
       console.error("Checkout failed:", err);
+
+      // AADE error 319: this credit note would exceed the remaining creditable
+      // amount of the original invoice. Surface a clear Greek message and
+      // drop the correlation so the user picks a different original.
+      if (String(err?.error_code) === "319") {
+        setCorrelatedInvoice(null);
+        setToast({
+          type: "error",
+          message:
+            "Το αρχικό τιμολόγιο έχει ήδη πιστωθεί πλήρως. Επίλεξε άλλο ή μείωσε το ποσό.",
+        });
+        return;
+      }
 
       // AADE error 603: AA already used. Backend already bumped next_aa server-side —
       // refresh the local series so the UI picks up the new counter.
@@ -415,6 +458,7 @@ export default function UnifiedCheckoutPage() {
               customerVat={
                 customers.find((c) => c.id === customerId)?.vat_number || null
               }
+              refreshKey={correlatedRefreshKey}
             />
           )}
 
@@ -444,6 +488,7 @@ export default function UnifiedCheckoutPage() {
             customerId={customerId}
             loading={loading}
             handleCheckout={handleCheckout}
+            isCreditNote={isCreditNote}
           />
         </div>
       </div>
