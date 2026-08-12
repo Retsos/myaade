@@ -1,15 +1,10 @@
-# myaade — e-Invoicing App
+# myaade — open-source e-invoicing client for the Bratnet myDATA API
 
 <img width="1917" height="837" alt="myaade" src="https://github.com/user-attachments/assets/92375d04-02ea-4563-9f97-ca0bea65153c" />
 
-An end-to-end client for **myDATA**, the e-invoicing platform of Greece's Independent
-Authority for Public Revenue (AADE), built on top of the Bratnet
-([etimologiera](https://www.etimologiera.gr)) provider API. Both halves of it:
+An end-to-end client for the Bratnet (etimologiera) provider API, through which businesses file documents with myDATA, the e-invoicing platform of Greece's Independent Authority for Public Revenue (AADE). Bratnet owns the conversation with AADE; this project owns everything on the customer's side of it. Both halves:
 
-- **An integration layer** (Express) that speaks the Bratnet/myDATA protocol — the POS and
-  deferred-payment signature flows, the myDATA invoice / payment-method / VAT code catalogs,
-  MARK correlation for credit notes, series and AA sequencing with recovery from AADE
-  rejections, and local persistence of everything filed.
+- **An integration layer (Express) that speaks the provider API — the POS and deferred-payment signature flows, the myDATA invoice / payment-method / VAT code catalogs, MARK correlation for credit notes, series and AA sequencing with recovery from rejections, and local persistence of everything issued.
 - **A front end** (React) on top of it, so the whole thing is usable the day you clone it.
 
 Built as an industry-partnered semester project at the International Hellenic University, in
