@@ -1,10 +1,14 @@
-# EpilogiB — e-Invoicing App
+# myaade — e-Invoicing App
 
 An application for issuing electronic documents (B2B invoices & retail receipts) with integration to the myDATA service of the Independent Authority for Public Revenue (AADE).
 
 <img width="1917" height="837" alt="myaade" src="https://github.com/user-attachments/assets/92375d04-02ea-4563-9f97-ca0bea65153c" />
 
-Supported features:
+Scope
+
+This is a reference implementation, and the boundary is deliberate.
+
+In scope — the full path from a form submission to a document filed at AADE:
 
 - Issue wholesale invoices (1.1 Sale, 2.1 Provision of Services)
 - Issue **credit invoices** (5.1) referencing the original MARK
@@ -248,4 +252,8 @@ For production deployment, this application requires:
 - Better secrets management (avoid plain-text `.env`)
 - A backup strategy for SQLite (or migrate to a managed DB)
 
-This application is designed as an educational project in collaboration with Bratnet — it is not intended for production use without further hardening.
+- Context & license
+
+Built as an industry-partnered semester project at the International Hellenic University, in collaboration with Bratnet, and released open source so their API customers can build their own interface instead of licensing one.
+
+LICENSE - MIT
