@@ -1,32 +1,54 @@
 # myaade — e-Invoicing App
 
-An application for issuing electronic documents (B2B invoices & retail receipts) with integration to the myDATA service of the Independent Authority for Public Revenue (AADE).
-
 <img width="1917" height="837" alt="myaade" src="https://github.com/user-attachments/assets/92375d04-02ea-4563-9f97-ca0bea65153c" />
 
-Scope
+An end-to-end client for **myDATA**, the e-invoicing platform of Greece's Independent
+Authority for Public Revenue (AADE), built on top of the Bratnet
+([etimologiera](https://www.etimologiera.gr)) provider API. Both halves of it:
 
-This is a reference implementation, and the boundary is deliberate.
+- **An integration layer** (Express) that speaks the Bratnet/myDATA protocol — the POS and
+  deferred-payment signature flows, the myDATA invoice / payment-method / VAT code catalogs,
+  MARK correlation for credit notes, series and AA sequencing with recovery from AADE
+  rejections, and local persistence of everything filed.
+- **A front end** (React) on top of it, so the whole thing is usable the day you clone it.
 
-In scope — the full path from a form submission to a document filed at AADE:
+Built as an industry-partnered semester project at the International Hellenic University, in
+collaboration with Bratnet, and released open source so their API customers can build their
+own client instead of licensing one.
 
-- Issue wholesale invoices (1.1 Sale, 2.1 Provision of Services)
-- Issue **credit invoices** (5.1) referencing the original MARK
-- Issue retail receipts (11.1, 11.2)
-- Payment with **POS** (createSimSign + sendSimInvoice)
-- Deferred B2B payment (createSign + updatePayments)
-- Auto-retry on AADE error **603** (AA already used) with automatic counter update
-- Invoice history with filters (VAT, MARK, dates), summary cards and pagination
-- Customer & series management
-- Mobile-friendly UI (responsive sidebar, filter modal, card view for history)
+**Stack:** Express 5 · better-sqlite3 · Axios · React 19 · TypeScript · Vite · Tailwind · Zustand · React Router 7
 
 ---
 
-## Technologies
+## Scope
 
-- **Frontend:** React 19 · TypeScript · Tailwind CSS · Vite · Zustand · React Router 7
-- **Backend:** Node.js · Express 5 · better-sqlite3 · Axios
-- **Database:** SQLite (local file)
+This is a **reference implementation**, and the boundary is deliberate.
+
+**In scope** — the full path from a form submission to a document filed at AADE:
+
+- Wholesale invoices (1.1 Sale, 2.1 Provision of Services)
+- Retail receipts (11.1, 11.2)
+- Credit invoices (5.1) with `correlatedInvoices` MARK linking and partial-credit tracking
+- POS payments — `createSimSign` → `sendSimInvoice` signature flow
+- Deferred B2B payments — `createSign` → `updatePayments`
+- The myDATA code catalogs (invoice types, payment methods, VAT categories) mapped to
+  something a cashier can actually pick from a dropdown
+- Series & AA sequencing, including recovery from AADE rejection
+- Invoice history with server-side filtering, pagination and live period totals
+- Customer and series management, responsive down to a POS terminal screen
+
+
+*Out of scope, on purpose** — everything that belongs to the integrating system:
+
+| Not included | Why |
+|---|---|
+| User authentication / roles | Every integrator already has an identity system; baking one in would mean ripping it out |
+| Secrets management | `.env` is correct for a local reference; production belongs in a vault, and that choice is infrastructure-specific |
+| Managed database | SQLite keeps `git clone && npm i` working with zero setup. The data layer is isolated in `db.js` for exactly this reason |
+| Multi-tenancy | One issuer per instance, matching the single-VAT `ISSUER_VAT` model |
+
+Taking this to production? See the [production checklist](#production-checklist).
+
 
 ---
 
@@ -243,17 +265,36 @@ UPDATE series SET next_aa = <new_number> WHERE name = '<SERIES>' AND invoice_typ
 
 ---
 
-## Production & Deployment
 
-For production deployment, this application requires:
+## Using the app
 
-- HTTPS (required by AADE production endpoints)
-- An authentication layer for users (none exists at the moment)
-- Better secrets management (avoid plain-text `.env`)
-- A backup strategy for SQLite (or migrate to a managed DB)
+1. Check that **Company Details** shows your issuer data
+2. Add customers under **Customers**
+3. **Checkout (POS)** — pick Invoice (B2B) or Retail, pick a series (the AA auto-fills from
+   the DB), enter amounts, choose Cash / Pending (B2B only) / POS
+4. **History** — live summary cards (Net, VAT, Total) that follow the active filters,
+   debounced search, and a "Pending" badge on unsettled B2B invoices with a POS button to
+   settle them
 
-- Context & license
 
-Built as an industry-partnered semester project at the International Hellenic University, in collaboration with Bratnet, and released open source so their API customers can build their own interface instead of licensing one.
+---
 
-LICENSE - MIT
+## Production checklist
+
+To take this beyond a reference implementation:
+
+- [ ] **HTTPS** — required by AADE production endpoints
+- [ ] **Authentication & authorization** — no user layer exists, by design
+- [ ] **Secrets management** — move Bratnet credentials out of plain-text `.env`
+- [ ] **Durable storage** — migrate off local SQLite, or add a backup strategy. The data
+      layer is isolated in `db.js` to keep this a contained change
+- [ ] **Idempotency keys on issuance** — closes the timeout window that causes 603 drift in
+      the first place
+- [ ] **Structured logging on every AADE call** — you will need the audit trail
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
