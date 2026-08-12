@@ -1,24 +1,24 @@
 # EpilogiB — e-Invoicing App
 
-Εφαρμογή έκδοσης ηλεκτρονικών παραστατικών (Β2Β τιμολόγια & λιανικές αποδείξεις) με σύνδεση στο **myDATA της ΑΑΔΕ** μέσω του παρόχου **Bratnet (etimologiera)**.
+An application for issuing electronic documents (B2B invoices & retail receipts) with integration to the myDATA service of the Independent Authority for Public Revenue (AADE).
 
 <img width="1917" height="837" alt="myaade" src="https://github.com/user-attachments/assets/92375d04-02ea-4563-9f97-ca0bea65153c" />
 
-Υποστηρίζονται:
+Supported features:
 
-- Έκδοση τιμολογίων χονδρικής (1.1 Πώληση, 2.1 Παροχή Υπηρεσιών)
-- Έκδοση **πιστωτικών τιμολογίων** (5.1) με αναφορά στο αρχικό MARK
-- Έκδοση αποδείξεων λιανικής (11.1, 11.2)
-- Πληρωμή με **POS** (createSimSign + sendSimInvoice)
-- Ετεροχρονισμένη πληρωμή B2B (createSign + updatePayments)
-- Auto-retry στο error **603** (AA already used) με αυτόματη ενημέρωση του counter
-- Ιστορικό παραστατικών με φίλτρα (ΑΦΜ, MARK, ημερομηνίες), summary cards και pagination
-- Διαχείριση πελατολογίου & σειρών παραστατικών
-- Mobile-friendly UI (responsive sidebar, filter modal, card view για το ιστορικό)
+- Issue wholesale invoices (1.1 Sale, 2.1 Provision of Services)
+- Issue **credit invoices** (5.1) referencing the original MARK
+- Issue retail receipts (11.1, 11.2)
+- Payment with **POS** (createSimSign + sendSimInvoice)
+- Deferred B2B payment (createSign + updatePayments)
+- Auto-retry on AADE error **603** (AA already used) with automatic counter update
+- Invoice history with filters (VAT, MARK, dates), summary cards and pagination
+- Customer & series management
+- Mobile-friendly UI (responsive sidebar, filter modal, card view for history)
 
 ---
 
-## Τεχνολογίες
+## Technologies
 
 - **Frontend:** React 19 · TypeScript · Tailwind CSS · Vite · Zustand · React Router 7
 - **Backend:** Node.js · Express 5 · better-sqlite3 · Axios
@@ -26,26 +26,26 @@
 
 ---
 
-## Προαπαιτούμενα
+## Prerequisites
 
 - **Node.js** ≥ 18
-- **npm** (έρχεται μαζί με το Node)
-- Credentials από τη **Bratnet** (etimologiera) για το myDATA API
+- **npm** (bundled with Node)
+- Credentials from **Bratnet** (etimologiera) for the myDATA API
 
 ---
 
-## Δομή Project
+## Project Structure
 
 ```
 epilogiB/
 ├── backend/                # Express API server (port 3000)
 │   ├── routes/             # API endpoints (per resource)
-│   ├── config.js           # Axios client για Bratnet
+│   ├── config.js           # Axios client for Bratnet
 │   ├── db.js               # SQLite schema, migrations, seeds, ISSUER_VAT sync
 │   ├── invoiceTypes.js     # myDATA invoice / payment / VAT catalogs
 │   ├── server.js           # Entry point, route mounting
-│   ├── .env.example        # Template για το .env (δεν περιέχει secrets)
-│   └── database.db         # SQLite file (δημιουργείται αυτόματα)
+│   ├── .env.example        # Template for .env (does not contain secrets)
+│   └── database.db         # SQLite file (created automatically)
 ├── frontend/               # React app (port 5173)
 │   └── src/
 │       ├── pages/          # Dashboard, Checkout, History, Customers, Company
@@ -57,13 +57,13 @@ epilogiB/
 │       │   └── Toast.tsx   # Auto-dismissing notification
 │       ├── store/          # Zustand store (customers, series, company cache)
 │       ├── types.ts
-│       └── api.ts          # Axios wrappers γύρω από το backend API
+│       └── api.ts          # Axios wrappers around the backend API
 └── index.html              # Visual flow documentation
 ```
 
 ---
 
-## 1. Κατέβασμα του project
+## 1. Clone the project
 
 ```bash
 git clone <repo-url>
@@ -79,13 +79,13 @@ cd backend
 npm install
 ```
 
-Δημιούργησε ένα `.env` αντιγράφοντας το template:
+Create a `.env` by copying the template:
 
 ```bash
 cp .env.example .env
 ```
 
-Άνοιξε το `.env` και βάλε τα δικά σου credentials. Τα keys που χρειάζονται:
+Open the `.env` and add your credentials. The keys required:
 
 ```env
 BRATNET_API_URL=https://api.etimologiera.gr
@@ -95,57 +95,57 @@ ISSUER_VAT=your_vat_here
 PORT=3000
 ```
 
-> **Σημείωση:** τα Bratnet credentials σου τα δίνει ο πάροχος. Χωρίς αυτά, οι κλήσεις στο myDATA θα αποτυγχάνουν αλλά το app θα τρέχει.
+> Note: The Bratnet credentials are provided by the provider. Without them, calls to myDATA will fail but the app will still run in a local/demo mode.
 >
-> Το `ISSUER_VAT` είναι το ΑΦΜ της δικής σου επιχείρησης (του εκδότη). Σε κάθε εκκίνηση του server, το `vat_number` του company record συγχρονίζεται με αυτή την τιμή.
+> The `ISSUER_VAT` is the VAT number (AFM) of your company (the issuer). On every server start the company record's vat_number is synchronized from this value.
 >
-> Το `.env` είναι στο `.gitignore` οπότε **δεν** ανεβαίνει στο git. Το `.env.example` ανεβαίνει για να ξέρει ο επόμενος ποιες variables χρειάζεται.
+> The `.env` is listed in `.gitignore` so it is **not** committed to git. The `.env.example` is committed so others know which variables are required.
 
-### Στοιχεία εκδότη (issuer)
+### Issuer details (company)
 
-Το πρώτο record στον πίνακα `company` είναι τα στοιχεία της επιχείρησης που εκδίδει τα παραστατικά. Η φόρτωση γίνεται σε δύο βήματα:
+The first record in the `company` table holds the details of the issuing company. Loading is done automatically on server start.
 
-**Βήμα 1:** Το ΑΦΜ έρχεται από το `.env` (`ISSUER_VAT`). Σε κάθε εκκίνηση του server, το `db.js` δημιουργεί / συγχρονίζει αυτόματα το `vat_number` του company record.
+**Step 1:** The VAT comes from the `.env` (`ISSUER_VAT`). On each server boot `db.js` creates/synchronizes the company record using this VAT.
 
-**Βήμα 2:** Τα υπόλοιπα στοιχεία (όνομα, ΔΟΥ, διεύθυνση κ.λπ.) χρειάζεται να τα βάλεις χειροκίνητα μία φορά. Άνοιξε τη βάση με κάποιο SQLite client (DB Browser for SQLite, sqlite3 CLI κ.λπ.) και τρέξε:
+**Step 2:** The remaining fields (name, tax office, address, etc.) must be filled manually once. Open the DB and run an update like:
 
 ```sql
 UPDATE company SET
-  name           = 'Η Επωνυμία μου',
-  title          = 'Διακριτικός Τίτλος',
+  name           = 'My Company Name',
+  title          = 'Trading Title',
   branch         = 0,
   country        = 'GR',
   doy_code       = '1101',
-  doy_name       = 'Α΄ Αθηνών',
-  city           = 'Αθήνα',
+  doy_name       = 'A\' Athens',
+  city           = 'Athens',
   postal_code    = '10563',
-  street         = 'Ερμού',
+  street         = 'Ermou',
   street_number  = '12',
   email          = 'info@example.gr',
   phone          = '2101234567',
   website        = 'https://example.gr',
   gemh           = '000000000000',
-  activity       = 'Δραστηριότητα'
+  activity       = 'Activity'
 WHERE id = 1;
 ```
 
-> Το `vat_number` δεν χρειάζεται να μπει εδώ — το διαχειρίζεται το `.env` και ξανασυγχρονίζεται σε κάθε boot.
+> The `vat_number` does not need to be set here — it is managed from the `.env` and re-synced at boot.
 
-### Εκκίνηση backend
+### Start the backend
 
 ```bash
-npm run dev      # development με auto-reload (nodemon)
-# ή
+npm run dev      # development with auto-reload (nodemon)
+# or
 npm start        # production
 ```
 
-Το API τρέχει στο **http://localhost:3000**.
+The API runs at **http://localhost:3000**.
 
 ---
 
 ## 3. Frontend setup
 
-Σε νέο terminal:
+In a new terminal:
 
 ```bash
 cd frontend
@@ -153,98 +153,99 @@ npm install
 npm run dev
 ```
 
-Το app τρέχει στο **http://localhost:5173**.
+The app runs at **http://localhost:5173**.
 
-### Build για production
+### Build for production
 
 ```bash
-npm run build      # παράγει dist/
-npm run preview    # δοκιμή του build
+npm run build      # produces dist/
+npm run preview    # test the build
 ```
 
 ---
 
-## 4. Πρώτη χρήση
+## 4. First use
 
-1. Άνοιξε το **http://localhost:5173**
-2. Ελέγξε ότι το **Στοιχεία Επιχείρησης** εμφανίζει σωστά τα δικά σου δεδομένα
-3. Πήγαινε στο **Πελατολόγιο** και πρόσθεσε τους πρώτους πελάτες
-4. Στο **Ταμείο (POS)** μπορείς να εκδώσεις παραστατικά:
-   - Επίλεξε _Τιμολόγιο_ (B2B) ή _Λιανική_
-   - Επίλεξε σειρά (ΤΠΥ, ΑΛΠ, κ.λπ.) — ο ΑΑ γεμίζει αυτόματα από τη βάση
-   - Συμπλήρωσε ποσά
-   - Διάλεξε τρόπο πληρωμής: Μετρητά / Εκκρεμές (μόνο B2B) / POS
-5. Στο **Ιστορικό** βλέπεις όλα τα εκδομένα παραστατικά:
-   - Summary cards (Καθαρή, ΦΠΑ, Σύνολο) που ενημερώνονται live με τα φίλτρα
-   - Auto-search καθώς πληκτρολογείς (debounced)
-   - "Εκκρεμές" status φαίνεται **μόνο** σε B2B τιμολόγια με payment_method = NONE
-   - POS κουμπί για εξόφληση εκκρεμών B2B
+1. Open **http://localhost:5173**
+2. Verify that the **Company Details** show your data correctly
+3. Go to **Customers** and add the first customers
+4. In **Checkout (POS)** you can issue documents:
+   - Choose _Invoice_ (B2B) or _Retail_
+   - Choose a series (TPY, ALP, etc.) — the AA is auto-filled from the DB
+   - Fill amounts
+   - Choose payment method: Cash / Pending (B2B only) / POS
+5. In **History** you see all issued documents:
+   - Summary cards (Net, VAT, Total) update live with filters
+   - Auto-search while typing (debounced)
+   - "Pending" status appears **only** for B2B invoices with payment_method = NONE
+   - POS button to settle pending B2B invoices
 
-### Έκδοση πιστωτικού τιμολογίου (5.1)
+### Issuing a credit invoice (5.1)
 
-1. Στο **Ταμείο** διάλεξε _Τιμολόγιο_ → σειρά **ΠΤ**
-2. Επίλεξε τον πελάτη — η νέα κάρτα "Συσχετιζόμενο Παραστατικό" εμφανίζεται από κάτω
-3. Στο searchable dropdown **βλέπεις μόνο τα τιμολόγια του συγκεκριμένου πελάτη**
-   - Όσα είναι ήδη πλήρως πιστωτικά εμφανίζονται disabled με ένδειξη "Πλήρως πιστωτικό"
-   - Όσα έχουν μερική πίστωση δείχνουν badge "Διαθέσιμο €X"
-4. Διάλεξε το αρχικό τιμολόγιο που θες να διορθώσεις
-5. Το ποσό + η αιτιολογία γεμίζουν αυτόματα — τα μειώνεις αν είναι μερικό πιστωτικό
-6. Πατάς το μοναδικό κουμπί **"Έκδοση Πιστωτικού"** (κόκκινο) — δεν υπάρχει επιλογή τρόπου πληρωμής γιατί το πιστωτικό μειώνει χρέος, δεν εισπράττει
-7. Το backend στέλνει `correlatedInvoices: [MARK]` στην ΑΑΔΕ
-8. Στο **Ιστορικό** το πιστωτικό φαίνεται με ροζ background, badge "Πιστωτικό", αρνητικά ποσά και status "Εκδόθηκε" — και αφαιρείται αυτόματα από τα σύνολα περιόδου
+1. In **Checkout** choose _Invoice_ → series **PT**
+2. Select the customer — the new "Related Document" card appears below
+3. The searchable dropdown shows only the invoices of that customer
+   - Fully credited documents appear disabled with the label "Fully credited"
+   - Partially credited documents show a badge "Available €X"
+4. Choose the original invoice you want to correct
+5. Amount and reason are prefilled — reduce them if issuing a partial credit
+6. Click the single **"Issue Credit"** button (red) — there's no payment method because credit invoices are not payment documents
+7. The backend sends `correlatedInvoices: [MARK]` to AADE
+8. In **History** the credit invoice is shown with a pink background, a "Credit" badge, negative amounts and status "Issued" — and related links to the original document
 
 ---
 
-## API endpoints (συνοπτικά)
+## API endpoints (summary)
 
-| Method | Endpoint                | Σκοπός                                                           |
-| ------ | ----------------------- | ---------------------------------------------------------------- |
-| GET    | `/api/company`          | Στοιχεία εκδότη                                                  |
-| GET    | `/api/customers`        | Λίστα πελατών                                                    |
-| POST   | `/api/customers`        | Νέος πελάτης                                                     |
-| DELETE | `/api/customers/:id`    | Διαγραφή πελάτη                                                  |
-| GET    | `/api/invoices`         | Ιστορικό (filters: `vat`, `mark`, `from`, `to`, `page`, `limit`) |
-| POST   | `/api/invoices`         | Αποθήκευση εγγραφής τοπικά                                       |
-| POST   | `/api/invoices/:id/pay` | Ετεροχρονισμένη πληρωμή B2B με POS                               |
-| GET    | `/api/series`           | Λίστα σειρών                                                     |
-| PUT    | `/api/series/:id`       | Ενημέρωση next_aa                                                |
-| POST   | `/api/sendInvoice`      | Έκδοση χωρίς POS                                                 |
-| POST   | `/api/sendSimInvoice`   | Έκδοση με POS (απαιτεί signature)                                |
-| POST   | `/api/createSimSign`    | Παραγωγή signature για νέο POS παραστατικό                       |
-| POST   | `/api/createSign`       | Παραγωγή signature για ετεροχρονισμένη πληρωμή                   |
-| GET    | `/api/credits`          | Υπόλοιπο credits Bratnet                                         |
+| Method | Endpoint                | Purpose                                                           |
+| ------ | ----------------------- | ----------------------------------------------------------------- |
+| GET    | `/api/company`          | Company details                                                    |
+| GET    | `/api/customers`        | Customer list                                                      |
+| POST   | `/api/customers`        | New customer                                                       |
+| DELETE | `/api/customers/:id`    | Delete customer                                                    |
+| GET    | `/api/invoices`         | History (filters: `vat`, `mark`, `from`, `to`, `page`, `limit`)   |
+| POST   | `/api/invoices`         | Save record locally                                                |
+| POST   | `/api/invoices/:id/pay` | Deferred B2B payment via POS                                       |
+| GET    | `/api/series`           | Series list                                                        |
+| PUT    | `/api/series/:id`       | Update next_aa                                                      |
+| POST   | `/api/sendInvoice`      | Issue without POS                                                   |
+| POST   | `/api/sendSimInvoice`   | Issue with POS (requires signature)                                 |
+| POST   | `/api/createSimSign`    | Produce signature for a new POS document                            |
+| POST   | `/api/createSign`       | Produce signature for deferred payment                              |
+| GET    | `/api/credits`          | Bratnet credits balance                                              |
 
 ---
 
 ## Troubleshooting
 
-**Πρόβλημα:** `BRATNET_API_URL is not defined`
-→ Σιγουρέψου ότι υπάρχει το `.env` αρχείο στο `backend/` και έχεις κάνει restart το server.
+**Issue:** `BRATNET_API_URL is not defined`  
+→ Make sure the `.env` file exists in `backend/` and you've restarted the server.
 
-**Πρόβλημα:** `database.db` corrupt ή schema mismatch
-→ Σβήσε το αρχείο `backend/database.db` και ξανατρέξε `npm run dev`. Το schema θα ξαναδημιουργηθεί αυτόματα. **Προσοχή:** χάνεις όλα τα δεδομένα (πελάτες, παραστατικά).
+**Issue:** `database.db` corrupt or schema mismatch  
+→ Delete `backend/database.db` and rerun `npm run dev`. The schema will be recreated automatically. WARNING: you will lose all local data.
 
-**Πρόβλημα:** CORS errors στο frontend
-→ Το backend χρησιμοποιεί `cors()` με default settings. Αν αλλάξεις port, σιγουρέψου ότι το `frontend/src/api.ts` δείχνει στο σωστό URL (`http://localhost:3000/api`).
+**Issue:** CORS errors in the frontend  
+→ The backend uses `cors()` with default settings. If you change ports, make sure `frontend/src/api.ts` points to the correct backend URL.
 
-**Πρόβλημα:** Bratnet API επιστρέφει 401
-→ Λάθος credentials στο `.env`.
+**Issue:** Bratnet API returns 401  
+→ Wrong credentials in `.env`.
 
-**Πρόβλημα:** AADE error **603 "Invoice already has been send"**
-→ Σημαίνει ότι ο ΑΑ που δοκίμασες έχει ήδη χρησιμοποιηθεί στη ΑΑΔΕ. Το backend κάνει αυτόματα **έως 5 retries** αυξάνοντας το `next_aa` της σειράς, οπότε στις περισσότερες περιπτώσεις δουλεύει με μία προσπάθεια. Αν αποτύχουν και τα 5 retries (πολύ μεγάλο drift), ρύθμισε χειροκίνητα τη σειρά:
+**Issue:** AADE error **603 "Invoice already has been send"**  
+→ Means the AA that you tried to use has already been sent to AADE. The backend automatically retries up to 5 times while incrementing the counter. If you need to manually fix the series counter:
+
 ```sql
-UPDATE series SET next_aa = <νέος_αριθμός> WHERE name = '<ΣΕΙΡΑ>' AND invoice_type = '<ΤΥΠΟΣ>';
+UPDATE series SET next_aa = <new_number> WHERE name = '<SERIES>' AND invoice_type = '<TYPE>';
 ```
 
 ---
 
-## Παραγωγή & Deployment
+## Production & Deployment
 
-Για production deployment, αυτή η εφαρμογή χρειάζεται:
+For production deployment, this application requires:
 
-- HTTPS (απαιτείται από την ΑΑΔΕ για paragraf production endpoints)
-- Authentication layer για τους χρήστες (τώρα δεν υπάρχει)
-- Καλύτερο secrets management (όχι `.env` σε plain text)
-- Backup strategy για το SQLite (ή migration σε managed DB)
+- HTTPS (required by AADE production endpoints)
+- An authentication layer for users (none exists at the moment)
+- Better secrets management (avoid plain-text `.env`)
+- A backup strategy for SQLite (or migrate to a managed DB)
 
-Η εφαρμογή είναι σχεδιασμένη ως **εκπαιδευτικό project** σε συνεργασία με τη Bratnet — δεν προορίζεται για production χρήση χωρίς τις παραπάνω προσθήκες.
+This application is designed as an educational project in collaboration with Bratnet — it is not intended for production use without further hardening.
