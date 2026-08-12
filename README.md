@@ -296,5 +296,5 @@ To take this beyond a reference implementation:
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT 
 
